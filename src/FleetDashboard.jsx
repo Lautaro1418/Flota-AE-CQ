@@ -138,7 +138,7 @@ export default function FleetDashboard() {
             <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
           </div>
           <div>
-            <h1 style={styles.title}>FLEET CONTROL</h1>
+            <h1 style={styles.title}>TABLERO DE CONTROL - Flota de Equipos CQ</h1>
             <span style={styles.subtitle}>Panel de Gestión de Flota — Logística</span>
           </div>
         </div>
