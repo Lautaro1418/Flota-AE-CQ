@@ -177,7 +177,7 @@ export default function FleetDashboard() {
             </svg>
           </div>
           <div>
-            <h1 style={styles.title}>FLEET CONTROL</h1>
+            <h1 style={styles.title}>TABLERO DE CONTROL - Flota de Equipos CQ</h1>
             <span style={styles.subtitle}>Panel de Gestión de Flota — Logística</span>
           </div>
         </div>
