@@ -125,7 +125,45 @@ export default function FleetDashboard() {
   const [equipFilter, setEquipFilter] = useState("");
   const [statusDetailModal, setStatusDetailModal] = useState(null);
   const [calendarWeekOffset, setCalendarWeekOffset] = useState(0);
-  const [fdsRecords, setFdsRecords] = useState(FDS_INITIAL);
+
+  // ─── Datos desde Supabase ───
+  const [checks, setChecks] = useState([]);
+  const [flota, setFlota] = useState([]);
+  const [services, setServices] = useState([]);
+  const [fdsRecords, setFdsRecords] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchData() {
+      const [
+        { data: checksData },
+        { data: flotaData },
+        { data: servicesData },
+        { data: fdsData }
+      ] = await Promise.all([
+        supabase.from('checks').select('*').order('fecha', { ascending: false }),
+        supabase.from('flota').select('*'),
+        supabase.from('services').select('*'),
+        supabase.from('fuera_de_servicio').select('*')
+      ]);
+
+      setChecks(checksData || []);
+      setFlota(flotaData || EQUIPMENT);
+      setServices(servicesData || []);
+      setFdsRecords(fdsData || []);
+      setLoading(false);
+    }
+
+    fetchData();
+  }, []);
+
+  if (loading) {
+    return (
+      <div style={{ ...styles.root, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
+        <div style={{ color: '#f59e0b', fontSize: 14, letterSpacing: 2 }}>CARGANDO FLOTA...</div>
+      </div>
+    );
+  }
 
   // Derive which equipment IDs are currently FdS
   const activeFdsIds = useMemo(
