@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
 import './App.css';
 import FueraDeServicio from './FueraDeServicio.jsx';
+import { supabase } from './supabaseClient.js';
 
 // ─── Responsive hook ──────────────────────────────────────────
 function useIsMobile() {
