@@ -198,14 +198,46 @@ export default function FleetDashboard() {
 
   const types = [...new Set(EQUIPMENT.map((e) => e.type))];
 
-const addFds = useCallback((entry) => {
-  setFdsRecords((prev) => [...prev, { ...entry, id: Date.now(), resolved: false, resolvedDate: null }]);
+const addFds = useCallback(async (entry) => {
+  const { data, error } = await supabase
+    .from('fuera_de_servicio')
+    .insert([{
+      equipment_id: entry.equipmentId,
+      equipment_name: entry.equipmentName,
+      sector: entry.sector,
+      type: entry.type,
+      start_date: entry.startDate,
+      reason: entry.reason,
+      resolved: false,
+      resolved_date: null
+    }])
+    .select();
+  if (!error && data) {
+    setFdsRecords((prev) => [...prev, {
+      id: data[0].id,
+      equipmentId: data[0].equipment_id,
+      equipmentName: data[0].equipment_name,
+      sector: data[0].sector,
+      type: data[0].type,
+      startDate: data[0].start_date,
+      reason: data[0].reason,
+      resolved: false,
+      resolvedDate: null
+    }]);
+  }
 }, []);
 
-const resolveFds = useCallback((id) => {
-  setFdsRecords((prev) =>
-    prev.map((r) => r.id === id ? { ...r, resolved: true, resolvedDate: new Date().toISOString().split("T")[0] } : r)
-  );
+const resolveFds = useCallback(async (id) => {
+  const today = new Date().toISOString().split("T")[0];
+  const { error } = await supabase
+    .from('fuera_de_servicio')
+    .update({ resolved: true, resolved_date: today })
+    .eq('id', id);
+  if (!error) {
+    setFdsRecords((prev) =>
+      prev.map((r) => r.id === id ? { ...r, resolved: true, resolvedDate: today } : r)
+    );
+  }
 }, []);
 
   const TABS = [
