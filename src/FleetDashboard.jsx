@@ -198,15 +198,15 @@ export default function FleetDashboard() {
 
   const types = [...new Set(EQUIPMENT.map((e) => e.type))];
 
-  const addFds = useCallback((entry) => {
-    setFdsRecords((prev) => [...prev, { ...entry, id: Date.now(), resolved: false, resolvedDate: null }]);
-  }, []);
+const addFds = useCallback((entry) => {
+  setFdsRecords((prev) => [...prev, { ...entry, id: Date.now(), resolved: false, resolvedDate: null }]);
+}, []);
 
-  const resolveFds = useCallback((id) => {
-    setFdsRecords((prev) =>
-      prev.map((r) => r.id === id ? { ...r, resolved: true, resolvedDate: new Date().toISOString().split("T")[0] } : r)
-    );
-  }, []);
+const resolveFds = useCallback((id) => {
+  setFdsRecords((prev) =>
+    prev.map((r) => r.id === id ? { ...r, resolved: true, resolvedDate: new Date().toISOString().split("T")[0] } : r)
+  );
+}, []);
 
   const TABS = [
     { key: "status",   label: isMobile ? "Flota"     : "Status Flota",          icon: "◉" },
