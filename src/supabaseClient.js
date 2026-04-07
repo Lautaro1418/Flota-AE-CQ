@@ -12,3 +12,4 @@ export const supabase = (supabaseUrl && supabaseKey)
         get: () => () => ({ data: null, error: { message: 'Supabase no configurado' } })
       })
     })
+
