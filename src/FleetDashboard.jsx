@@ -22,7 +22,6 @@ const SECTORS = [
   "ESTIBAS", "ETIQUETAS", "VARIETAL NORTE", "VARIETAL SUR", "TRAPICHE", "MANTENIMIENTO",
 ];
 
-// NOTE: Fuera de servicio is now managed via FDS_INITIAL / state — removed from here.
 const EQUIPMENT = [
   { id: "AE-25",  name: "AE N°25 TCM FG25T3",     type: "AE GLP",        sector: "ALMACEN",        status: "ok",      nextService: "2026-03-31T08:00", horómetro: 12450 },
   { id: "AE-34",  name: "AE CAT N°34",              type: "AE GLP",        sector: "EXPEDICIÓN",     status: "ok",      nextService: "2026-03-31T10:00", horómetro: 8920  },
@@ -56,7 +55,6 @@ const EQUIPMENT = [
   { id: "CAM-A",  name: "CAMIÓN 1114 AZUL",         type: "CAMIÓN",        sector: "EXPEDICIÓN",     status: "warning", nextService: "2026-03-30T15:00", horómetro: 52100 },
 ];
 
-// ─── Initial FdS state (replaces fuera_servicio status in EQUIPMENT) ───
 const FDS_INITIAL = [
   { id: 1, equipmentId: "AE-22", equipmentName: "AE N°22 MITSUBISHI",  sector: "ESTIBAS", type: "AE GLP",       startDate: "2026-03-25", reason: "Pérdida severa de aceite hidráulico en cilindro principal", resolved: false, resolvedDate: null },
   { id: 2, equipmentId: "AE-07", equipmentName: "AE N°7 TCM COMB.",   sector: "ESTIBAS", type: "AE GLP",       startDate: "2026-03-27", reason: "Falla en caja de transmisión — en espera de repuesto TCM",    resolved: false, resolvedDate: null },
@@ -132,9 +130,19 @@ export default function FleetDashboard() {
   const [services, setServices] = useState([]);
   const [fdsRecords, setFdsRecords] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     async function fetchData() {
+      // Verificar que Supabase esté configurado
+      if (!import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KEY) {
+        console.warn('⚠️ Supabase no configurado — usando datos mock');
+        setFlota(EQUIPMENT);
+        setFdsRecords(FDS_INITIAL);
+        setLoading(false);
+        return;
+      }
+
       try {
         const [
           { data: checksData, error: e1 },
@@ -156,9 +164,13 @@ export default function FleetDashboard() {
         setChecks(checksData || []);
         setFlota(flotaData?.length ? flotaData : EQUIPMENT);
         setServices(servicesData || []);
-        setFdsRecords(fdsData || []);
+        setFdsRecords(fdsData?.length ? fdsData : FDS_INITIAL);
       } catch (err) {
         console.error('Error general:', err.message);
+        setError(err.message);
+        // Fallback a datos mock si Supabase falla
+        setFlota(EQUIPMENT);
+        setFdsRecords(FDS_INITIAL);
       } finally {
         setLoading(false);
       }
@@ -167,13 +179,10 @@ export default function FleetDashboard() {
     fetchData();
   }, []);
 
-  if (loading) {
-    return (
-      <div style={{ ...styles.root, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
-        <div style={{ color: '#f59e0b', fontSize: 14, letterSpacing: 2 }}>CARGANDO FLOTA...</div>
-      </div>
-    );
-  }
+  // ═══════════════════════════════════════════════════════════════
+  // ⚠️ FIX CRÍTICO: TODOS los hooks ANTES del return condicional
+  // React exige que los hooks se llamen siempre en el mismo orden.
+  // ═══════════════════════════════════════════════════════════════
 
   // Derive which equipment IDs are currently FdS
   const activeFdsIds = useMemo(
@@ -208,47 +217,85 @@ export default function FleetDashboard() {
 
   const types = [...new Set(EQUIPMENT.map((e) => e.type))];
 
-const addFds = useCallback(async (entry) => {
-  const { data, error } = await supabase
-    .from('fuera_de_servicio')
-    .insert([{
-      equipment_id: entry.equipmentId,
-      equipment_name: entry.equipmentName,
-      sector: entry.sector,
-      type: entry.type,
-      start_date: entry.startDate,
-      reason: entry.reason,
-      resolved: false,
-      resolved_date: null
-    }])
-    .select();
-  if (!error && data) {
-    setFdsRecords((prev) => [...prev, {
-      id: data[0].id,
-      equipmentId: data[0].equipment_id,
-      equipmentName: data[0].equipment_name,
-      sector: data[0].sector,
-      type: data[0].type,
-      startDate: data[0].start_date,
-      reason: data[0].reason,
-      resolved: false,
-      resolvedDate: null
-    }]);
-  }
-}, []);
+  const addFds = useCallback(async (entry) => {
+    // Si Supabase no está configurado, usar modo local
+    if (!import.meta.env.VITE_SUPABASE_URL) {
+      const newId = Date.now();
+      setFdsRecords((prev) => [...prev, {
+        id: newId,
+        equipmentId: entry.equipmentId,
+        equipmentName: entry.equipmentName,
+        sector: entry.sector,
+        type: entry.type,
+        startDate: entry.startDate,
+        reason: entry.reason,
+        resolved: false,
+        resolvedDate: null
+      }]);
+      return;
+    }
 
-const resolveFds = useCallback(async (id) => {
-  const today = new Date().toISOString().split("T")[0];
-  const { error } = await supabase
-    .from('fuera_de_servicio')
-    .update({ resolved: true, resolved_date: today })
-    .eq('id', id);
-  if (!error) {
-    setFdsRecords((prev) =>
-      prev.map((r) => r.id === id ? { ...r, resolved: true, resolvedDate: today } : r)
+    const { data, error } = await supabase
+      .from('fuera_de_servicio')
+      .insert([{
+        equipment_id: entry.equipmentId,
+        equipment_name: entry.equipmentName,
+        sector: entry.sector,
+        type: entry.type,
+        start_date: entry.startDate,
+        reason: entry.reason,
+        resolved: false,
+        resolved_date: null
+      }])
+      .select();
+    if (!error && data) {
+      setFdsRecords((prev) => [...prev, {
+        id: data[0].id,
+        equipmentId: data[0].equipment_id,
+        equipmentName: data[0].equipment_name,
+        sector: data[0].sector,
+        type: data[0].type,
+        startDate: data[0].start_date,
+        reason: data[0].reason,
+        resolved: false,
+        resolvedDate: null
+      }]);
+    }
+  }, []);
+
+  const resolveFds = useCallback(async (id) => {
+    const today = new Date().toISOString().split("T")[0];
+
+    // Si Supabase no está configurado, usar modo local
+    if (!import.meta.env.VITE_SUPABASE_URL) {
+      setFdsRecords((prev) =>
+        prev.map((r) => r.id === id ? { ...r, resolved: true, resolvedDate: today } : r)
+      );
+      return;
+    }
+
+    const { error } = await supabase
+      .from('fuera_de_servicio')
+      .update({ resolved: true, resolved_date: today })
+      .eq('id', id);
+    if (!error) {
+      setFdsRecords((prev) =>
+        prev.map((r) => r.id === id ? { ...r, resolved: true, resolvedDate: today } : r)
+      );
+    }
+  }, []);
+
+  // ═══════════════════════════════════════════════════════════════
+  // Ahora SÍ el return condicional — después de todos los hooks
+  // ═══════════════════════════════════════════════════════════════
+
+  if (loading) {
+    return (
+      <div style={{ ...styles.root, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
+        <div style={{ color: '#f59e0b', fontSize: 14, letterSpacing: 2 }}>CARGANDO FLOTA...</div>
+      </div>
     );
   }
-}, []);
 
   const TABS = [
     { key: "status",   label: isMobile ? "Flota"     : "Status Flota",          icon: "◉" },
@@ -284,6 +331,13 @@ const resolveFds = useCallback(async (id) => {
           </div>
         </div>
       </header>
+
+      {/* ─── Error banner (si Supabase falló) ─── */}
+      {error && (
+        <div style={{ padding: '8px 24px', background: '#422006', borderBottom: '1px solid #92400e', fontSize: 12, color: '#fbbf24' }}>
+          ⚠ Modo offline — usando datos de demostración. ({error})
+        </div>
+      )}
 
       {/* ─── Tabs ─── */}
       <nav style={styles.tabs} className="fleet-tabs">
@@ -449,7 +503,6 @@ function CalendarView({ equipment, events, weekOffset, setWeekOffset, isMobile }
 
   const weekTitle = `Semana del ${monday.toLocaleDateString("es-AR", { day: "2-digit", month: "long" })} al ${weekDates[6].toLocaleDateString("es-AR", { day: "2-digit", month: "long", year: "numeric" })}`;
 
-  // Group events by day for mobile list view
   const eventsByDay = useMemo(() => {
     const grouped = {};
     weekDates.forEach((d) => {
