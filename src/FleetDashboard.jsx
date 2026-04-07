@@ -135,23 +135,33 @@ export default function FleetDashboard() {
 
   useEffect(() => {
     async function fetchData() {
-      const [
-        { data: checksData },
-        { data: flotaData },
-        { data: servicesData },
-        { data: fdsData }
-      ] = await Promise.all([
-        supabase.from('checks').select('*').order('fecha', { ascending: false }),
-        supabase.from('flota').select('*'),
-        supabase.from('services').select('*'),
-        supabase.from('fuera_de_servicio').select('*')
-      ]);
+      try {
+        const [
+          { data: checksData, error: e1 },
+          { data: flotaData, error: e2 },
+          { data: servicesData, error: e3 },
+          { data: fdsData, error: e4 }
+        ] = await Promise.all([
+          supabase.from('checks').select('*').order('fecha', { ascending: false }),
+          supabase.from('flota').select('*'),
+          supabase.from('services').select('*'),
+          supabase.from('fuera_de_servicio').select('*')
+        ]);
 
-      setChecks(checksData || []);
-      setFlota(flotaData || EQUIPMENT);
-      setServices(servicesData || []);
-      setFdsRecords(fdsData || []);
-      setLoading(false);
+        if (e1) console.error('checks:', e1.message);
+        if (e2) console.error('flota:', e2.message);
+        if (e3) console.error('services:', e3.message);
+        if (e4) console.error('fuera_de_servicio:', e4.message);
+
+        setChecks(checksData || []);
+        setFlota(flotaData?.length ? flotaData : EQUIPMENT);
+        setServices(servicesData || []);
+        setFdsRecords(fdsData || []);
+      } catch (err) {
+        console.error('Error general:', err.message);
+      } finally {
+        setLoading(false);
+      }
     }
 
     fetchData();
