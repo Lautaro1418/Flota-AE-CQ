@@ -614,15 +614,37 @@ function CalendarView({ equipment, events, weekOffset, setWeekOffset, isMobile }
 
 function RecordView({ equipment, records, isMobile }) {
   const [selectedEquip, setSelectedEquip] = useState(null);
+  const [tooltip, setTooltip] = useState(null); // { x, y, equipId, item, records }
+
   const eqIds = new Set(equipment.map((e) => e.id));
   const relevantRecords = records.filter((r) => eqIds.has(r.equipmentId));
   const aggregated = useMemo(() => { const m = {}; relevantRecords.forEach((r) => { if (!m[r.equipmentId]) m[r.equipmentId] = {}; if (!m[r.equipmentId][r.item]) m[r.equipmentId][r.item] = 0; m[r.equipmentId][r.item]++; }); return m; }, [relevantRecords]);
   const selectedRecords = selectedEquip ? relevantRecords.filter((r) => r.equipmentId === selectedEquip).sort((a, b) => b.date.localeCompare(a.date)) : [];
   const displayItems = isMobile ? CHECK_ITEMS.slice(0, 7) : CHECK_ITEMS;
 
+  // Tooltip handlers — sigue al cursor, solo desktop
+  const handleCellMove = (e, equipId, item, count) => {
+    if (isMobile || count === 0) return;
+    const cellRecords = relevantRecords
+      .filter((r) => r.equipmentId === equipId && r.item === item)
+      .sort((a, b) => b.date.localeCompare(a.date))
+      .slice(0, 5);
+    setTooltip({
+      x: e.clientX,
+      y: e.clientY,
+      equipId, item, count,
+      records: cellRecords,
+    });
+  };
+  const handleCellLeave = () => setTooltip(null);
+
   return (
     <div>
-      <p style={styles.sectionDesc}>Resumen de ítems reportados como <span style={{ color: "#ef4444", fontWeight: 700 }}>NO OK</span> en los últimos 14 días.{isMobile && <span style={{ color: "#6b7280" }}> (7 ítems)</span>}</p>
+      <p style={styles.sectionDesc}>
+        Resumen de ítems reportados como <span style={{ color: "#ef4444", fontWeight: 700 }}>NO OK</span> en los últimos 14 días.
+        {!isMobile && <span style={{ color: "#6b7280" }}> Pasá el mouse sobre una celda para ver el detalle.</span>}
+        {isMobile && <span style={{ color: "#6b7280" }}> (7 ítems)</span>}
+      </p>
       <div style={styles.tableContainer} className="fleet-table-container fleet-heatmap-container">
         <table style={styles.table}>
           <thead><tr>
@@ -635,12 +657,81 @@ function RecordView({ equipment, records, isMobile }) {
             if (total === 0) return null;
             return (<tr key={eq.id} style={{ ...styles.tr, cursor: "pointer", background: selectedEquip === eq.id ? "#1e293b" : undefined }} onClick={() => setSelectedEquip(selectedEquip === eq.id ? null : eq.id)}>
               <td style={{ ...styles.td, position: "sticky", left: 0, background: selectedEquip === eq.id ? "#1e293b" : "#111827", zIndex: 1, fontWeight: 600, whiteSpace: "nowrap" }}>{eq.id}</td>
-              {displayItems.map((item, i) => { const c = eqData[item] || 0; const int = c === 0 ? 0 : Math.min(c / 4, 1); return (<td key={i} style={{ ...styles.td, textAlign: "center", background: c > 0 ? `rgba(239,68,68,${0.15 + int * 0.55})` : "transparent", color: c > 0 ? "#fca5a5" : "#374151", fontWeight: c > 0 ? 700 : 400, fontSize: 13 }}>{c || "·"}</td>); })}
+              {displayItems.map((item, i) => {
+                const c = eqData[item] || 0;
+                const int = c === 0 ? 0 : Math.min(c / 4, 1);
+                return (
+                  <td key={i}
+                    style={{ ...styles.td, textAlign: "center", background: c > 0 ? `rgba(239,68,68,${0.15 + int * 0.55})` : "transparent", color: c > 0 ? "#fca5a5" : "#374151", fontWeight: c > 0 ? 700 : 400, fontSize: 13, cursor: c > 0 ? "help" : "default", transition: "transform 0.1s", }}
+                    onMouseMove={(e) => handleCellMove(e, eq.id, item, c)}
+                    onMouseLeave={handleCellLeave}
+                  >
+                    {c || "·"}
+                  </td>
+                );
+              })}
               <td style={{ ...styles.td, textAlign: "center", fontWeight: 800, color: total > 5 ? "#ef4444" : total > 2 ? "#eab308" : "#9ca3af", background: "#1e1b4b", fontSize: 15 }}>{total}</td>
             </tr>);
           })}</tbody>
         </table>
       </div>
+
+      {/* ─── Tooltip flotante del heatmap ─── */}
+      {tooltip && (
+        <div style={{
+          position: "fixed",
+          left: Math.min(tooltip.x + 16, window.innerWidth - 310),
+          top: Math.max(tooltip.y - 20, 10),
+          width: 290,
+          background: "#1e293b",
+          border: "1px solid #475569",
+          borderRadius: 10,
+          padding: "12px 14px",
+          zIndex: 9999,
+          boxShadow: "0 12px 40px rgba(0,0,0,0.7), 0 0 0 1px rgba(71,85,105,0.3)",
+          pointerEvents: "none",
+          fontSize: 12,
+          fontFamily: "inherit",
+        }}>
+          {/* Header del tooltip */}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8, paddingBottom: 8, borderBottom: "1px solid #334155" }}>
+            <span style={{ fontWeight: 800, color: "#f59e0b", fontSize: 13 }}>{tooltip.equipId}</span>
+            <span style={{ background: "#450a0a", color: "#fca5a5", padding: "2px 8px", borderRadius: 4, fontWeight: 700, fontSize: 11 }}>
+              {tooltip.count}× NO OK
+            </span>
+          </div>
+          <div style={{ color: "#94a3b8", fontSize: 11, marginBottom: 8, fontWeight: 600 }}>{tooltip.item}</div>
+
+          {/* Lista de reportes */}
+          {tooltip.records.length > 0 ? tooltip.records.map((r, i) => (
+            <div key={i} style={{
+              display: "flex", alignItems: "center", gap: 8,
+              padding: "5px 0",
+              borderTop: i > 0 ? "1px solid #1f293766" : "none",
+              fontSize: 11,
+            }}>
+              <span style={{ color: "#9ca3af", minWidth: 42, fontWeight: 600 }}>
+                {r.date ? new Date(r.date).toLocaleDateString("es-AR", { day: "2-digit", month: "short" }) : "—"}
+              </span>
+              <span style={{ color: "#6b7280", background: "#0f172a", padding: "1px 5px", borderRadius: 3, fontSize: 10, fontWeight: 600 }}>
+                {r.turno || "—"}
+              </span>
+              <span style={{ color: "#e2e8f0", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {r.descripcion || "Sin descripción"}
+              </span>
+              <span style={{ color: "#64748b", fontSize: 10, whiteSpace: "nowrap" }}>{r.operario || ""}</span>
+            </div>
+          )) : (
+            <div style={{ color: "#6b7280", fontSize: 11, fontStyle: "italic" }}>Datos mock — sin observaciones detalladas</div>
+          )}
+          {tooltip.count > 5 && (
+            <div style={{ color: "#64748b", fontSize: 10, marginTop: 6, textAlign: "center", borderTop: "1px solid #334155", paddingTop: 6 }}>
+              +{tooltip.count - 5} reportes más — clic en la fila para ver todos
+            </div>
+          )}
+        </div>
+      )}
+
       {selectedEquip && selectedRecords.length > 0 && (
         <div style={styles.recordDetail}>
           <h4 style={styles.recordDetailTitle}>Detalle — <span style={{ color: "#f59e0b" }}>{selectedEquip}</span><span style={styles.recordCount}>{selectedRecords.length} reportes</span></h4>
