@@ -106,8 +106,15 @@ function transformServicesTemplate(servicesData, equipoMap, weekOffset = 0, exce
 
   const weekEndDate = new Date(monday);
   weekEndDate.setDate(monday.getDate() + 6);
-  const weekStart = monday.toISOString().split("T")[0];
-  const weekEnd = weekEndDate.toISOString().split("T")[0];
+  // Usar fecha local (no UTC) para evitar bug de timezone en Argentina (UTC-3)
+  const toLocalDate = (d) => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+  };
+  const weekStart = toLocalDate(monday);
+  const weekEnd = toLocalDate(weekEndDate);
 
   // Equipos cuyo turno original del template fue reemplazado esta semana
   // clave: "EQUIPONOMBRE|fechaOriginalEnTemplate"
@@ -132,15 +139,18 @@ function transformServicesTemplate(servicesData, equipoMap, weekOffset = 0, exce
       });
     }
 
-    // Marcar el día original del template para este equipo como reemplazado
-    servicesData.forEach((svc) => {
-      if ((svc.equipo || "").trim().toUpperCase() !== equipKey) return;
-      const dayOffset = DAY_INDEX[svc.dia?.toUpperCase().trim()];
-      if (dayOffset === undefined) return;
-      const dateOrig = new Date(monday);
-      dateOrig.setDate(monday.getDate() + dayOffset);
-      reemplazados.add(`${equipKey}|${dateOrig.toISOString().split("T")[0]}`);
-    });
+    // Marcar el turno original SOLO si la excepción cae dentro de esta semana
+    // Si la excepción es de otra semana, el template muestra el turno normal
+    if (fechaExc >= weekStart && fechaExc <= weekEnd) {
+      servicesData.forEach((svc) => {
+        if ((svc.equipo || "").trim().toUpperCase() !== equipKey) return;
+        const dayOffset = DAY_INDEX[svc.dia?.toUpperCase().trim()];
+        if (dayOffset === undefined) return;
+        const dateOrig = new Date(monday);
+        dateOrig.setDate(monday.getDate() + dayOffset);
+        reemplazados.add(`${equipKey}|${toLocalDate(dateOrig)}`);
+      });
+    }
   });
 
   // 2. Agregar turnos del template que NO fueron reemplazados
@@ -151,7 +161,7 @@ function transformServicesTemplate(servicesData, equipoMap, weekOffset = 0, exce
     if (!equipId) return;
     const date = new Date(monday);
     date.setDate(monday.getDate() + dayOffset);
-    const dateStr = date.toISOString().split("T")[0];
+    const dateStr = toLocalDate(date);
     const equipKey = (svc.equipo || "").trim().toUpperCase();
 
     if (reemplazados.has(`${equipKey}|${dateStr}`)) return;
