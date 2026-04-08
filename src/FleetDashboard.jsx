@@ -181,7 +181,7 @@ const FDS_MOCK = [
 // ═════════════════════════════════════════════════════════════
 // COMPONENTE PRINCIPAL
 // ═════════════════════════════════════════════════════════════
-export default function FleetDashboard() {
+export default function FleetDashboard({ onBack }) {
   const isMobile = useIsMobile();
   const [activeTab, setActiveTab] = useState("status");
   const [typeFilter, setTypeFilter] = useState("TODOS");
@@ -341,11 +341,16 @@ export default function FleetDashboard() {
           </div>
         </div>
         <div style={styles.headerRight} className="fleet-header-right">
-          <span style={styles.dateLabel}>
-            {new Date().toLocaleDateString("es-AR", { weekday: isMobile ? "short" : "long", year: "numeric", month: "long", day: "numeric" })}
-          </span>
-          <div style={styles.liveIndicator}><span style={styles.liveDot} />ACTIVO</div>
-        </div>
+  {onBack && (
+    <button onClick={onBack} style={{ background: "transparent", border: "1px solid #1f2937", color: "#6b7280", padding: "6px 12px", borderRadius: 6, cursor: "pointer", fontFamily: "inherit", fontSize: 11, fontWeight: 600 }}>
+      ← Inicio
+    </button>
+  )}
+  <span style={styles.dateLabel}>
+    {new Date().toLocaleDateString("es-AR", { weekday: isMobile ? "short" : "long", year: "numeric", month: "long", day: "numeric" })}
+  </span>
+  <div style={styles.liveIndicator}><span style={styles.liveDot} />ACTIVO</div>
+</div>
       </header>
 
       {dataSource === "mock" && (
