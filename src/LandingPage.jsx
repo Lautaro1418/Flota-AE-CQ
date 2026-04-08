@@ -3,7 +3,7 @@ import { useState } from "react";
 // URL del formulario de Tally
 const TALLY_URL = "https://tally.so/r/2EvQvA";
 
-export default function LandingPage({ onEnterDashboard, onEnterForms }) {
+export default function LandingPage({ onEnterDashboard, onEnterForms, onEnterAdmin }) {
   const [hoveredCard, setHoveredCard] = useState(null);
 
   return (
@@ -88,6 +88,35 @@ export default function LandingPage({ onEnterDashboard, onEnterForms }) {
               </div>
             </div>
             <div style={{ ...s.cardArrow, color: "#3b82f6", opacity: hoveredCard === "forms" ? 1 : 0.3 }}>
+              →
+            </div>
+          </button>
+
+          {/* Card: Admin */}
+          <button
+            style={{
+              ...s.card,
+              ...(hoveredCard === "admin" ? s.cardHovered : {}),
+              borderColor: hoveredCard === "admin" ? "#8b5cf6" : "#1f2937",
+            }}
+            onMouseEnter={() => setHoveredCard("admin")}
+            onMouseLeave={() => setHoveredCard(null)}
+            onClick={onEnterAdmin}
+          >
+            <div style={{ ...s.cardIcon, background: hoveredCard === "admin" ? "#8b5cf622" : "#1f2937" }}>
+              <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" strokeWidth="1.5">
+                <circle cx="12" cy="8" r="4"/>
+                <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
+                <path d="M18 14l2 2 4-4" strokeWidth="2"/>
+              </svg>
+            </div>
+            <div style={s.cardContent}>
+              <div style={{ ...s.cardTitle, color: "#c4b5fd" }}>Administración</div>
+              <div style={s.cardDesc}>
+                Gestioná la flota, el personal y el calendario de servicios. Requiere contraseña.
+              </div>
+            </div>
+            <div style={{ ...s.cardArrow, color: "#8b5cf6", opacity: hoveredCard === "admin" ? 1 : 0.3 }}>
               →
             </div>
           </button>
