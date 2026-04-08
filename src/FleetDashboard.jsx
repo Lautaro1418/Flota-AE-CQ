@@ -679,8 +679,7 @@ function RecordView({ equipment, records, isMobile }) {
             <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "5px 0", borderTop: i > 0 ? "1px solid #1f293766" : "none", fontSize: 11 }}>
               <span style={{ color: "#9ca3af", minWidth: 42, fontWeight: 600 }}>{r.date ? new Date(r.date).toLocaleDateString("es-AR", { day: "2-digit", month: "short" }) : "—"}</span>
               <span style={{ color: "#6b7280", background: "#0f172a", padding: "1px 5px", borderRadius: 3, fontSize: 10, fontWeight: 600 }}>{r.turno || "—"}</span>
-              <span style={{ color: "#e2e8f0", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.descripcion || "Sin descripción"}</span>
-              <span style={{ color: "#64748b", fontSize: 10 }}>{r.operario || ""}</span>
+              <span style={{ color: "#e2e8f0", flex: 1 }}>  {r.descripcion || "Sin descripción"}</span>
             </div>
           ))}
         </div>
