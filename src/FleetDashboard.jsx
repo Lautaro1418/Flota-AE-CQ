@@ -97,9 +97,11 @@ function transformServicesTemplate(servicesData, equipoMap, weekOffset = 0, exce
   monday.setHours(0, 0, 0, 0);
 
   // Mapa excepciones: "EQUIPONOMBRE|fecha" → excepcion
+  // Normalizar fecha: Supabase puede devolver "2026-04-08" o "2026-04-08T00:00:00"
   const excMap = {};
   excepciones.forEach((exc) => {
-    const key = `${(exc.equipo || "").trim().toUpperCase()}|${exc.fecha}`;
+    const fechaNorm = (exc.fecha || "").toString().slice(0, 10); // siempre YYYY-MM-DD
+    const key = `${(exc.equipo || "").trim().toUpperCase()}|${fechaNorm}`;
     excMap[key] = exc;
   });
 
@@ -220,7 +222,9 @@ export default function FleetDashboard({ onBack }) {
   const [excepcionesRaw, setExcepcionesRaw] = useState([]);
   const [fdsRecords, setFdsRecords] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [dataSource, setDataSource] = useState("loading");
+  const [lastUpdated, setLastUpdated] = useState(null);
 
   useEffect(() => {
     async function fetchData() {
@@ -268,9 +272,40 @@ export default function FleetDashboard({ onBack }) {
         console.error("Error:", err.message);
         setFlota(FLOTA_MOCK); setNoOkRecords([]); setServicesRaw([]); setExcepcionesRaw([]);
         setFdsRecords(FDS_MOCK); setDataSource("mock");
-      } finally { setLoading(false); }
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
+        setLastUpdated(new Date());
+      }
     }
     fetchData();
+  }, []);
+
+  const handleRefresh = useCallback(() => {
+    setRefreshing(true);
+    // Re-ejecutar el fetch completo
+    const since = new Date();
+    since.setDate(since.getDate() - 14);
+    const sinceStr = since.toISOString().split("T")[0];
+    Promise.all([
+      supabase.from("flota").select("*").eq("activo", true),
+      supabase.from("checks").select("*").gte("fecha", sinceStr),
+      supabase.from("services_template").select("*"),
+      supabase.from("fuera_de_servicio").select("*"),
+      supabase.from("services_excepciones").select("*"),
+    ]).then(([{ data: flotaData }, { data: checksData }, { data: svcData }, { data: fdsData }, { data: excData }]) => {
+      const eqMap = buildEquipoMap(flotaData);
+      const flotaT = transformFlota(flotaData);
+      const noOk = transformChecksToNoOk(checksData, eqMap);
+      const fds = transformFds(fdsData);
+      setEquipoMap(eqMap);
+      setFlota(flotaT.length ? flotaT : FLOTA_MOCK);
+      setNoOkRecords(noOk);
+      setServicesRaw(svcData || []);
+      setExcepcionesRaw(excData || []);
+      setFdsRecords(fds.length ? fds : FDS_MOCK);
+      setLastUpdated(new Date());
+    }).finally(() => setRefreshing(false));
   }, []);
 
   const serviceEvents = useMemo(
@@ -378,6 +413,25 @@ export default function FleetDashboard({ onBack }) {
             {new Date().toLocaleDateString("es-AR", { weekday: isMobile ? "short" : "long", year: "numeric", month: "long", day: "numeric" })}
           </span>
           <div style={styles.liveIndicator}><span style={styles.liveDot} />ACTIVO</div>
+          <button
+            onClick={handleRefresh}
+            disabled={refreshing}
+            title={lastUpdated ? `Actualizado: ${lastUpdated.toLocaleTimeString("es-AR")}` : "Actualizar datos"}
+            style={{
+              background: "transparent",
+              border: "1px solid #1f2937",
+              color: refreshing ? "#374151" : "#6b7280",
+              padding: "6px 10px",
+              borderRadius: 6,
+              cursor: refreshing ? "not-allowed" : "pointer",
+              fontFamily: "inherit",
+              fontSize: 14,
+              lineHeight: 1,
+              transition: "all 0.2s",
+              transform: refreshing ? "rotate(180deg)" : "rotate(0deg)",
+            }}>
+            ↻
+          </button>
         </div>
       </header>
 
