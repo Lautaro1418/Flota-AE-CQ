@@ -87,14 +87,22 @@ function transformChecksToNoOk(checksData, equipoMap) {
   return records;
 }
 
-// ── services_template → eventos calendario para la semana ─────
-function transformServicesTemplate(servicesData, equipoMap, weekOffset = 0) {
+// ── services_template → eventos calendario (con excepciones) ──
+function transformServicesTemplate(servicesData, equipoMap, weekOffset = 0, excepciones = []) {
   const events = [];
   if (!servicesData?.length) return events;
   const now = new Date();
   const monday = new Date(now);
   monday.setDate(now.getDate() - ((now.getDay() + 6) % 7) + weekOffset * 7);
   monday.setHours(0, 0, 0, 0);
+
+  // Mapa excepciones: "EQUIPONOMBRE|fecha" → excepcion
+  const excMap = {};
+  excepciones.forEach((exc) => {
+    const key = `${(exc.equipo || "").trim().toUpperCase()}|${exc.fecha}`;
+    excMap[key] = exc;
+  });
+
   servicesData.forEach((svc) => {
     const dayOffset = DAY_INDEX[svc.dia?.toUpperCase().trim()];
     if (dayOffset === undefined) return;
@@ -103,12 +111,28 @@ function transformServicesTemplate(servicesData, equipoMap, weekOffset = 0) {
     const date = new Date(monday);
     date.setDate(monday.getDate() + dayOffset);
     const dateStr = date.toISOString().split("T")[0];
-    const timeStr = svc.inicio || "08:00:00";
+
+    const excKey = `${(svc.equipo || "").trim().toUpperCase()}|${dateStr}`;
+    const exc = excMap[excKey];
+
+    if (exc) {
+      if (!exc.inicio) return; // cancelado
+      events.push({
+        equipmentId: equipId,
+        equipmentName: svc.equipo,
+        sector: "—",
+        datetime: `${dateStr}T${exc.inicio}`,
+        type: "excepcion",
+        motivo: exc.motivo || null,
+      });
+      return;
+    }
+
     events.push({
       equipmentId: equipId,
       equipmentName: svc.equipo,
       sector: "—",
-      datetime: `${dateStr}T${timeStr}`,
+      datetime: `${dateStr}T${svc.inicio || "08:00:00"}`,
       type: "semanal",
     });
   });
@@ -181,7 +205,7 @@ const FDS_MOCK = [
 // ═════════════════════════════════════════════════════════════
 // COMPONENTE PRINCIPAL
 // ═════════════════════════════════════════════════════════════
-export default function FleetDashboard({ onBack }) {
+export default function FleetDashboard() {
   const isMobile = useIsMobile();
   const [activeTab, setActiveTab] = useState("status");
   const [typeFilter, setTypeFilter] = useState("TODOS");
@@ -193,6 +217,7 @@ export default function FleetDashboard({ onBack }) {
   const [equipoMap, setEquipoMap] = useState({});
   const [noOkRecords, setNoOkRecords] = useState([]);
   const [servicesRaw, setServicesRaw] = useState([]);
+  const [excepcionesRaw, setExcepcionesRaw] = useState([]);
   const [fdsRecords, setFdsRecords] = useState([]);
   const [loading, setLoading] = useState(true);
   const [dataSource, setDataSource] = useState("loading");
@@ -201,7 +226,7 @@ export default function FleetDashboard({ onBack }) {
     async function fetchData() {
       const isConfigured = import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY;
       if (!isConfigured) {
-        setFlota(FLOTA_MOCK); setNoOkRecords([]); setServicesRaw([]);
+        setFlota(FLOTA_MOCK); setNoOkRecords([]); setServicesRaw([]); setExcepcionesRaw([]);
         setFdsRecords(FDS_MOCK); setDataSource("mock"); setLoading(false);
         return;
       }
@@ -215,14 +240,16 @@ export default function FleetDashboard({ onBack }) {
           { data: checksData, error: e2 },
           { data: svcData,    error: e3 },
           { data: fdsData,    error: e4 },
+          { data: excData,    error: e5 },
         ] = await Promise.all([
           supabase.from("flota").select("*").eq("activo", true),
           supabase.from("checks").select("*").gte("fecha", sinceStr),
           supabase.from("services_template").select("*"),
           supabase.from("fuera_de_servicio").select("*"),
+          supabase.from("services_excepciones").select("*"),
         ]);
 
-        [e1,e2,e3,e4].forEach((e,i) => e && console.error(["flota","checks","services_template","fds"][i], e.message));
+        [e1,e2,e3,e4,e5].forEach((e,i) => e && console.error(["flota","checks","services_template","fds","excepciones"][i], e.message));
 
         const eqMap = buildEquipoMap(flotaData);
         const flotaT = transformFlota(flotaData);
@@ -233,12 +260,13 @@ export default function FleetDashboard({ onBack }) {
         setFlota(flotaT.length ? flotaT : FLOTA_MOCK);
         setNoOkRecords(noOk);
         setServicesRaw(svcData || []);
+        setExcepcionesRaw(excData || []);
         setFdsRecords(fds.length ? fds : FDS_MOCK);
         setDataSource(flotaT.length ? "supabase" : "mock");
         console.log(`📊 flota:${flotaT.length} checks:${noOk.length} svc:${svcData?.length} fds:${fds.length}`);
       } catch (err) {
         console.error("Error:", err.message);
-        setFlota(FLOTA_MOCK); setNoOkRecords([]); setServicesRaw([]);
+        setFlota(FLOTA_MOCK); setNoOkRecords([]); setServicesRaw([]); setExcepcionesRaw([]);
         setFdsRecords(FDS_MOCK); setDataSource("mock");
       } finally { setLoading(false); }
     }
@@ -246,8 +274,8 @@ export default function FleetDashboard({ onBack }) {
   }, []);
 
   const serviceEvents = useMemo(
-    () => transformServicesTemplate(servicesRaw, equipoMap, calendarWeekOffset),
-    [servicesRaw, equipoMap, calendarWeekOffset]
+    () => transformServicesTemplate(servicesRaw, equipoMap, calendarWeekOffset, excepcionesRaw),
+    [servicesRaw, equipoMap, calendarWeekOffset, excepcionesRaw]
   );
 
   const activeFdsIds = useMemo(
@@ -259,7 +287,7 @@ export default function FleetDashboard({ onBack }) {
     const nextSvcMap = {};
     const now = new Date();
     // Para nextService usamos siempre la semana actual (offset 0)
-    const thisWeekEvents = transformServicesTemplate(servicesRaw, equipoMap, 0);
+    const thisWeekEvents = transformServicesTemplate(servicesRaw, equipoMap, 0, excepcionesRaw);
     thisWeekEvents.forEach((ev) => {
       const d = new Date(ev.datetime);
       if (d >= now && (!nextSvcMap[ev.equipmentId] || d < new Date(nextSvcMap[ev.equipmentId])))
@@ -270,7 +298,7 @@ export default function FleetDashboard({ onBack }) {
       status: deriveStatus(eq.id, activeFdsIds, noOkRecords, thisWeekEvents),
       nextService: nextSvcMap[eq.id] || null,
     }));
-  }, [flota, activeFdsIds, noOkRecords, servicesRaw, equipoMap]);
+  }, [flota, activeFdsIds, noOkRecords, servicesRaw, equipoMap, excepcionesRaw]);
 
   const types = useMemo(() => [...new Set(flota.map((e) => e.type))], [flota]);
 
@@ -341,16 +369,11 @@ export default function FleetDashboard({ onBack }) {
           </div>
         </div>
         <div style={styles.headerRight} className="fleet-header-right">
-  {onBack && (
-    <button onClick={onBack} style={{ background: "transparent", border: "1px solid #1f2937", color: "#6b7280", padding: "6px 12px", borderRadius: 6, cursor: "pointer", fontFamily: "inherit", fontSize: 11, fontWeight: 600 }}>
-      ← Inicio
-    </button>
-  )}
-  <span style={styles.dateLabel}>
-    {new Date().toLocaleDateString("es-AR", { weekday: isMobile ? "short" : "long", year: "numeric", month: "long", day: "numeric" })}
-  </span>
-  <div style={styles.liveIndicator}><span style={styles.liveDot} />ACTIVO</div>
-</div>
+          <span style={styles.dateLabel}>
+            {new Date().toLocaleDateString("es-AR", { weekday: isMobile ? "short" : "long", year: "numeric", month: "long", day: "numeric" })}
+          </span>
+          <div style={styles.liveIndicator}><span style={styles.liveDot} />ACTIVO</div>
+        </div>
       </header>
 
       {dataSource === "mock" && (
@@ -549,7 +572,7 @@ function CalendarView({ equipment, events, weekOffset, setWeekOffset, isMobile }
                 return (
                   <div key={`${hour}-${di}`} style={styles.calCell}>
                     {de.map((ev, ei) => (
-                      <div key={ei} style={{ ...styles.calEvent, borderLeftColor: "#f59e0b", background: "#422006" }}>
+                      <div key={ei} style={{ ...styles.calEvent, borderLeftColor: ev.type === "excepcion" ? "#8b5cf6" : "#f59e0b", background: ev.type === "excepcion" ? "#2e1065" : "#422006" }}>
                         <span style={styles.calEventTime}>{ev.datetime.split("T")[1]?.slice(0, 5)}</span>
                         <span style={styles.calEventName}>{ev.equipmentId}</span>
                       </div>
@@ -578,7 +601,7 @@ function CalendarView({ equipment, events, weekOffset, setWeekOffset, isMobile }
               {de.length === 0
                 ? <div style={{ fontSize: 11, color: "#374151", padding: "4px 12px" }}>Sin servicios programados</div>
                 : de.map((ev, i) => (
-                  <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", background: "#422006", borderRadius: 6, borderLeft: "3px solid #f59e0b", marginBottom: 4, fontSize: 12 }}>
+                  <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", background: ev.type === "excepcion" ? "#2e1065" : "#422006", borderRadius: 6, borderLeft: `3px solid ${ev.type === "excepcion" ? "#8b5cf6" : "#f59e0b"}`, marginBottom: 4, fontSize: 12 }}>
                     <span style={{ color: "#9ca3af", minWidth: 40 }}>{ev.datetime.split("T")[1]?.slice(0, 5)}</span>
                     <span style={{ fontWeight: 700, color: "#f3f4f6" }}>{ev.equipmentId}</span>
                     <span style={{ color: "#9ca3af" }}>{ev.equipmentName}</span>
@@ -592,31 +615,15 @@ function CalendarView({ equipment, events, weekOffset, setWeekOffset, isMobile }
 
       <div style={styles.calLegend}>
         <div style={styles.legendItem}><span style={{ ...styles.legendDot, background: "#f59e0b" }} />Service semanal programado</div>
+        <div style={styles.legendItem}><span style={{ ...styles.legendDot, background: "#8b5cf6" }} />Excepción (horario modificado)</div>
       </div>
     </div>
   );
 }
 
-// ═══════════════════════════════════════════════════════════════
-// RECORD VIEW — Heatmap con interacciones completas
-// Reemplazá la función RecordView en FleetDashboard.jsx
-// ═══════════════════════════════════════════════════════════════
-
 function RecordView({ equipment, records, isMobile }) {
-  const [selectedEquip, setSelectedEquip] = useState(null);   // click fila → resumen equipo
-  const [selectedItem, setSelectedItem] = useState(null);     // click header → resumen ítem
-  const [selectedCell, setSelectedCell] = useState(null);     // click celda → equipo+ítem
-  const [tooltip, setTooltip] = useState(null);               // hover desktop
-
-  // Drawer mobile — unifica los tres modos
-  const [drawer, setDrawer] = useState(null); // { type: "equip"|"item"|"cell", ... }
-
-  const closeAll = () => {
-    setSelectedEquip(null);
-    setSelectedItem(null);
-    setSelectedCell(null);
-    setDrawer(null);
-  };
+  const [selectedEquip, setSelectedEquip] = useState(null);
+  const [tooltip, setTooltip] = useState(null);
 
   const eqIds = new Set(equipment.map((e) => e.id));
   const relevantRecords = records.filter((r) => eqIds.has(r.equipmentId));
@@ -631,196 +638,56 @@ function RecordView({ equipment, records, isMobile }) {
     return m;
   }, [relevantRecords]);
 
-  // En mobile mostramos SOLO columnas que tienen al menos 1 falla
-  const displayItems = useMemo(() => {
-    if (!isMobile) return CHECK_ITEMS;
-    return CHECK_ITEMS.filter((item) =>
-      equipment.some((eq) => (aggregated[eq.id]?.[item] || 0) > 0)
-    );
-  }, [isMobile, aggregated, equipment]);
+  const selectedRecords = selectedEquip
+    ? relevantRecords.filter((r) => r.equipmentId === selectedEquip).sort((a, b) => b.date.localeCompare(a.date))
+    : [];
 
-  // Registros filtrados para el panel activo
-  const panelRecords = useMemo(() => {
-    if (selectedEquip)
-      return relevantRecords.filter((r) => r.equipmentId === selectedEquip).sort((a, b) => b.date.localeCompare(a.date));
-    if (selectedItem)
-      return relevantRecords.filter((r) => r.item === selectedItem).sort((a, b) => b.date.localeCompare(a.date));
-    if (selectedCell)
-      return relevantRecords.filter((r) => r.equipmentId === selectedCell.equipId && r.item === selectedCell.item).sort((a, b) => b.date.localeCompare(a.date));
-    return [];
-  }, [selectedEquip, selectedItem, selectedCell, relevantRecords]);
-
-  const panelTitle = selectedEquip
-    ? `Equipo — ${selectedEquip}`
-    : selectedItem
-    ? `Ítem — ${selectedItem}`
-    : selectedCell
-    ? `${selectedCell.equipId} × ${selectedCell.item}`
-    : "";
-
-  // Handlers
-  const handleEquipClick = (equipId) => {
-    if (isMobile) {
-      setDrawer({ type: "equip", id: equipId });
-    } else {
-      setSelectedItem(null); setSelectedCell(null);
-      setSelectedEquip(selectedEquip === equipId ? null : equipId);
-    }
-  };
-
-  const handleItemClick = (item) => {
-    const hasRecords = relevantRecords.some((r) => r.item === item);
-    if (!hasRecords) return;
-    if (isMobile) {
-      setDrawer({ type: "item", item });
-    } else {
-      setSelectedEquip(null); setSelectedCell(null);
-      setSelectedItem(selectedItem === item ? null : item);
-    }
-  };
-
-  const handleCellClick = (equipId, item, count) => {
-    if (count === 0) return;
-    if (isMobile) {
-      setDrawer({ type: "cell", equipId, item });
-    } else {
-      setSelectedEquip(null); setSelectedItem(null);
-      setSelectedCell(
-        selectedCell?.equipId === equipId && selectedCell?.item === item ? null : { equipId, item }
-      );
-    }
-  };
-
-  // Tooltip desktop (hover)
-  const handleCellHover = (e, equipId, item, count) => {
-    if (isMobile || count === 0) return;
-    const cr = relevantRecords
-      .filter((r) => r.equipmentId === equipId && r.item === item)
-      .sort((a, b) => b.date.localeCompare(a.date))
-      .slice(0, 5);
-    setTooltip({ x: e.clientX, y: e.clientY, equipId, item, count, records: cr });
-  };
-
-  // Registros del drawer mobile
-  const drawerRecords = useMemo(() => {
-    if (!drawer) return [];
-    if (drawer.type === "equip")
-      return relevantRecords.filter((r) => r.equipmentId === drawer.id).sort((a, b) => b.date.localeCompare(a.date));
-    if (drawer.type === "item")
-      return relevantRecords.filter((r) => r.item === drawer.item).sort((a, b) => b.date.localeCompare(a.date));
-    if (drawer.type === "cell")
-      return relevantRecords.filter((r) => r.equipmentId === drawer.equipId && r.item === drawer.item).sort((a, b) => b.date.localeCompare(a.date));
-    return [];
-  }, [drawer, relevantRecords]);
-
-  const drawerTitle =
-    drawer?.type === "equip" ? `Equipo — ${drawer.id}` :
-    drawer?.type === "item"  ? `Ítem — ${drawer.item}` :
-    drawer?.type === "cell"  ? `${drawer.equipId} × ${drawer.item}` : "";
+  const displayItems = isMobile ? CHECK_ITEMS.slice(0, 7) : CHECK_ITEMS;
 
   return (
     <div>
-      <p style={rs.sectionDesc}>
-        Ítems reportados como <span style={{ color: "#ef4444", fontWeight: 700 }}>NO OK</span> en los últimos 14 días.
-        {isMobile
-          ? <span style={{ color: "#6b7280" }}> Tocá una celda, equipo o ítem para ver el detalle.</span>
-          : <span style={{ color: "#6b7280" }}> Hover para vista rápida. Clic en celda, equipo o ítem para panel completo.</span>
-        }
+      <p style={styles.sectionDesc}>
+        Resumen de ítems reportados como <span style={{ color: "#ef4444", fontWeight: 700 }}>NO OK</span> en los últimos 14 días.
+        {!isMobile && <span style={{ color: "#6b7280" }}> Pasá el mouse sobre una celda para ver el detalle.</span>}
       </p>
-
-      {/* ─── Tabla heatmap ─── */}
-      <div style={rs.tableWrap} className="fleet-table-container fleet-heatmap-container">
-        <table style={rs.table}>
-          <thead>
-            <tr>
-              {/* Header esquina */}
-              <th style={{ ...rs.th, position: "sticky", left: 0, background: "#111827", zIndex: 3, minWidth: 70 }}>
-                EQUIPO
-              </th>
-              {/* Headers de ítems — clickeables */}
-              {displayItems.map((item, i) => {
-                const totalItem = relevantRecords.filter((r) => r.item === item).length;
-                const isSelected = selectedItem === item;
-                return (
-                  <th key={i}
-                    onClick={() => handleItemClick(item)}
-                    style={{
-                      ...rs.th,
-                      fontSize: 10,
-                      writingMode: "vertical-rl",
-                      textAlign: "left",
-                      padding: "8px 4px",
-                      maxWidth: 32,
-                      cursor: totalItem > 0 ? "pointer" : "default",
-                      color: isSelected ? "#f59e0b" : totalItem > 0 ? "#d1d5db" : "#4b5563",
-                      background: isSelected ? "#1c1400" : "#111827",
-                      transition: "all 0.15s",
-                    }}>
-                    {item}
-                  </th>
-                );
-              })}
-              <th style={{ ...rs.th, background: "#1e1b4b", minWidth: 56 }}>TOTAL</th>
-            </tr>
-          </thead>
+      <div style={styles.tableContainer} className="fleet-table-container fleet-heatmap-container">
+        <table style={styles.table}>
+          <thead><tr>
+            <th style={{ ...styles.th, position: "sticky", left: 0, background: "#111827", zIndex: 2 }}>Equipo</th>
+            {displayItems.map((item, i) => (
+              <th key={i} style={{ ...styles.th, fontSize: 10, writingMode: "vertical-rl", textAlign: "left", padding: "8px 4px", maxWidth: 32 }}>{item}</th>
+            ))}
+            <th style={{ ...styles.th, background: "#1e1b4b" }}>TOTAL</th>
+          </tr></thead>
           <tbody>
             {equipment.map((eq) => {
               const eqData = aggregated[eq.id] || {};
               const total = Object.values(eqData).reduce((s, v) => s + v, 0);
               if (total === 0) return null;
-              const isEquipSelected = selectedEquip === eq.id;
               return (
-                <tr key={eq.id} style={{ ...rs.tr, background: isEquipSelected ? "#1e293b" : undefined }}>
-                  {/* Nombre equipo — clickeable */}
-                  <td
-                    onClick={() => handleEquipClick(eq.id)}
-                    style={{
-                      ...rs.td,
-                      position: "sticky", left: 0, zIndex: 1,
-                      background: isEquipSelected ? "#1e293b" : "#111827",
-                      fontWeight: 700, whiteSpace: "nowrap",
-                      cursor: "pointer",
-                      color: isEquipSelected ? "#f59e0b" : "#e5e7eb",
-                      borderRight: "1px solid #1f2937",
-                      transition: "all 0.15s",
-                    }}>
+                <tr key={eq.id}
+                  style={{ ...styles.tr, cursor: "pointer", background: selectedEquip === eq.id ? "#1e293b" : undefined }}
+                  onClick={() => setSelectedEquip(selectedEquip === eq.id ? null : eq.id)}>
+                  <td style={{ ...styles.td, position: "sticky", left: 0, background: selectedEquip === eq.id ? "#1e293b" : "#111827", zIndex: 1, fontWeight: 600, whiteSpace: "nowrap" }}>
                     {eq.id}
                   </td>
-                  {/* Celdas — clickeables */}
                   {displayItems.map((item, i) => {
                     const c = eqData[item] || 0;
-                    const intensity = c === 0 ? 0 : Math.min(c / 4, 1);
-                    const isCellSelected = selectedCell?.equipId === eq.id && selectedCell?.item === item;
+                    const int = c === 0 ? 0 : Math.min(c / 4, 1);
                     return (
                       <td key={i}
-                        onClick={() => handleCellClick(eq.id, item, c)}
-                        onMouseMove={(e) => handleCellHover(e, eq.id, item, c)}
-                        onMouseLeave={() => setTooltip(null)}
-                        style={{
-                          ...rs.td,
-                          textAlign: "center",
-                          background: isCellSelected
-                            ? "#f59e0b33"
-                            : c > 0
-                            ? `rgba(239,68,68,${0.15 + intensity * 0.55})`
-                            : "transparent",
-                          color: c > 0 ? "#fca5a5" : "#374151",
-                          fontWeight: c > 0 ? 700 : 400,
-                          fontSize: 13,
-                          cursor: c > 0 ? "pointer" : "default",
-                          outline: isCellSelected ? "2px solid #f59e0b" : "none",
-                          transition: "all 0.1s",
-                        }}>
+                        style={{ ...styles.td, textAlign: "center", background: c > 0 ? `rgba(239,68,68,${0.15 + int * 0.55})` : "transparent", color: c > 0 ? "#fca5a5" : "#374151", fontWeight: c > 0 ? 700 : 400, fontSize: 13, cursor: c > 0 ? "help" : "default" }}
+                        onMouseMove={(e) => {
+                          if (isMobile || c === 0) return;
+                          const cr = relevantRecords.filter((r) => r.equipmentId === eq.id && r.item === item).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 5);
+                          setTooltip({ x: e.clientX, y: e.clientY, equipId: eq.id, item, count: c, records: cr });
+                        }}
+                        onMouseLeave={() => setTooltip(null)}>
                         {c || "·"}
                       </td>
                     );
                   })}
-                  {/* Total */}
-                  <td style={{
-                    ...rs.td, textAlign: "center", fontWeight: 800,
-                    color: total > 5 ? "#ef4444" : total > 2 ? "#eab308" : "#9ca3af",
-                    background: "#1e1b4b", fontSize: 15,
-                  }}>
+                  <td style={{ ...styles.td, textAlign: "center", fontWeight: 800, color: total > 5 ? "#ef4444" : total > 2 ? "#eab308" : "#9ca3af", background: "#1e1b4b", fontSize: 15 }}>
                     {total}
                   </td>
                 </tr>
@@ -830,18 +697,8 @@ function RecordView({ equipment, records, isMobile }) {
         </table>
       </div>
 
-      {/* ─── Tooltip hover (solo desktop) ─── */}
-      {tooltip && !isMobile && (
-        <div style={{
-          position: "fixed",
-          left: Math.min(tooltip.x + 16, window.innerWidth - 310),
-          top: Math.max(tooltip.y - 20, 10),
-          width: 290,
-          background: "#1e293b", border: "1px solid #475569",
-          borderRadius: 10, padding: "12px 14px",
-          zIndex: 9999, boxShadow: "0 12px 40px rgba(0,0,0,0.7)",
-          pointerEvents: "none", fontSize: 12, fontFamily: "inherit",
-        }}>
+      {tooltip && (
+        <div style={{ position: "fixed", left: Math.min(tooltip.x + 16, window.innerWidth - 310), top: Math.max(tooltip.y - 20, 10), width: 290, background: "#1e293b", border: "1px solid #475569", borderRadius: 10, padding: "12px 14px", zIndex: 9999, boxShadow: "0 12px 40px rgba(0,0,0,0.7)", pointerEvents: "none", fontSize: 12, fontFamily: "inherit" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8, paddingBottom: 8, borderBottom: "1px solid #334155" }}>
             <span style={{ fontWeight: 800, color: "#f59e0b", fontSize: 13 }}>{tooltip.equipId}</span>
             <span style={{ background: "#450a0a", color: "#fca5a5", padding: "2px 8px", borderRadius: 4, fontWeight: 700, fontSize: 11 }}>{tooltip.count}× NO OK</span>
@@ -849,153 +706,83 @@ function RecordView({ equipment, records, isMobile }) {
           <div style={{ color: "#94a3b8", fontSize: 11, marginBottom: 8, fontWeight: 600 }}>{tooltip.item}</div>
           {tooltip.records.map((r, i) => (
             <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "5px 0", borderTop: i > 0 ? "1px solid #1f293766" : "none", fontSize: 11 }}>
-              <span style={{ color: "#9ca3af", minWidth: 42, fontWeight: 600 }}>
-                {r.date ? new Date(r.date).toLocaleDateString("es-AR", { day: "2-digit", month: "short" }) : "—"}
-              </span>
+              <span style={{ color: "#9ca3af", minWidth: 42, fontWeight: 600 }}>{r.date ? new Date(r.date).toLocaleDateString("es-AR", { day: "2-digit", month: "short" }) : "—"}</span>
               <span style={{ color: "#6b7280", background: "#0f172a", padding: "1px 5px", borderRadius: 3, fontSize: 10, fontWeight: 600 }}>{r.turno || "—"}</span>
-              <span style={{ color: "#e2e8f0", flex: 1 }}>{r.descripcion || "Sin descripción"}</span>
+              <span style={{ color: "#e2e8f0", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.descripcion || "Sin descripción"}</span>
+              <span style={{ color: "#64748b", fontSize: 10 }}>{r.operario || ""}</span>
             </div>
           ))}
-          <div style={{ color: "#64748b", fontSize: 10, marginTop: 6, textAlign: "center" }}>Clic para ver todos los registros</div>
         </div>
       )}
 
-      {/* ─── Panel detalle (desktop) ─── */}
-      {(selectedEquip || selectedItem || selectedCell) && panelRecords.length > 0 && !isMobile && (
-        <div style={rs.panel}>
-          <div style={rs.panelHeader}>
-            <h4 style={rs.panelTitle}>{panelTitle} <span style={rs.panelCount}>{panelRecords.length} registros</span></h4>
-            <button onClick={closeAll} style={rs.closeBtn}>✕</button>
-          </div>
-          <RecordList records={panelRecords} />
-        </div>
-      )}
-
-      {/* ─── Drawer mobile ─── */}
-      {isMobile && drawer && (
-        <>
-          {/* Overlay */}
-          <div
-            onClick={() => setDrawer(null)}
-            style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 998 }}
-          />
-          {/* Drawer */}
-          <div style={rs.drawer}>
-            <div style={rs.drawerHandle} />
-            <div style={rs.drawerHeader}>
-              <div>
-                <div style={rs.drawerTitle}>{drawerTitle}</div>
-                <div style={rs.drawerCount}>{drawerRecords.length} registros NO OK</div>
+      {selectedEquip && selectedRecords.length > 0 && (
+        <div style={styles.recordDetail}>
+          <h4 style={styles.recordDetailTitle}>
+            Detalle — <span style={{ color: "#f59e0b" }}>{selectedEquip}</span>
+            <span style={styles.recordCount}>{selectedRecords.length} reportes</span>
+          </h4>
+          <div style={styles.recordList}>
+            {selectedRecords.map((r, i) => (
+              <div key={i} style={styles.recordItem}>
+                <div style={styles.recordDate}>{new Date(r.date).toLocaleDateString("es-AR", { day: "2-digit", month: "short" })}</div>
+                <span style={styles.recordTurno}>{r.turno}</span>
+                <span style={styles.recordItemName}>{r.item}</span>
+                {!isMobile && <span style={styles.recordDesc}>{r.descripcion}</span>}
+                <span style={styles.recordOp}>{r.operario}</span>
               </div>
-              <button onClick={() => setDrawer(null)} style={rs.closeBtn}>✕</button>
-            </div>
-            <div style={rs.drawerBody}>
-              {drawerRecords.length === 0
-                ? <div style={{ color: "#6b7280", textAlign: "center", padding: 24, fontSize: 13 }}>Sin registros</div>
-                : <RecordList records={drawerRecords} isMobile />
-              }
-            </div>
+            ))}
           </div>
-        </>
+        </div>
       )}
     </div>
   );
 }
 
-// ─── Lista de registros reutilizable ─────────────────────────
-function RecordList({ records, isMobile }) {
+function DetailModal({ equipment, records, onClose }) {
+  const cfg = STATUS_CONFIG[equipment.status];
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-      {records.map((r, i) => (
-        <div key={i} style={{
-          display: "flex", alignItems: "flex-start", gap: 10,
-          padding: "10px 12px", background: "#0d1117",
-          borderRadius: 6, border: "1px solid #1f2937", fontSize: 12,
-          flexWrap: "wrap",
-        }}>
-          <div style={{ color: "#9ca3af", minWidth: 50, fontWeight: 600, flexShrink: 0 }}>
-            {r.date ? new Date(r.date).toLocaleDateString("es-AR", { day: "2-digit", month: "short" }) : "—"}
+    <div style={styles.modalOverlay} onClick={onClose}>
+      <div style={styles.modal} className="fleet-modal" onClick={(e) => e.stopPropagation()}>
+        <div style={styles.modalHeader}>
+          <div>
+            <h3 style={styles.modalTitle}>{equipment.name}</h3>
+            <span style={{ ...styles.statusBadge, background: cfg.bg, color: cfg.color, borderColor: cfg.color, fontSize: 13 }}>
+              {cfg.icon} {cfg.label}
+            </span>
           </div>
-          <span style={{ color: "#6b7280", fontSize: 10, background: "#1f2937", padding: "2px 6px", borderRadius: 3, fontWeight: 600, flexShrink: 0 }}>
-            {r.turno || "—"}
-          </span>
-          {!isMobile && (
-            <span style={{ color: "#f59e0b", fontWeight: 700, minWidth: 60, flexShrink: 0 }}>
-              {r.equipmentId}
-            </span>
-          )}
-          <span style={{ color: "#fca5a5", fontWeight: 600, flex: 1, minWidth: 100 }}>
-            {r.item}
-          </span>
-          <span style={{ color: "#d1d5db", flex: 2, minWidth: 120 }}>
-            {r.descripcion || "Sin descripción"}
-          </span>
-          {isMobile && (
-            <span style={{ color: "#6b7280", fontSize: 10, width: "100%", marginTop: 2 }}>
-              {r.equipmentId} — {r.operario || ""}
-            </span>
+          <button style={styles.modalClose} onClick={onClose}>✕</button>
+        </div>
+        <div style={styles.modalBody}>
+          <div style={styles.modalGrid} className="fleet-modal-grid">
+            <div style={styles.modalField}><span style={styles.modalFieldLabel}>ID</span><span>{equipment.id}</span></div>
+            <div style={styles.modalField}><span style={styles.modalFieldLabel}>Tipo</span><span>{equipment.type}</span></div>
+            <div style={styles.modalField}><span style={styles.modalFieldLabel}>Horómetro</span><span>{equipment.horómetro?.toLocaleString() || "N/A"}</span></div>
+            <div style={styles.modalField}>
+              <span style={styles.modalFieldLabel}>Próx. Service</span>
+              <span>{equipment.nextService ? new Date(equipment.nextService).toLocaleString("es-AR") : "Sin programar"}</span>
+            </div>
+            <div style={styles.modalField}>
+              <span style={styles.modalFieldLabel}>Reportes NO OK (14d)</span>
+              <span style={{ color: records.length > 0 ? "#ef4444" : "#16a34a", fontWeight: 700 }}>{records.length}</span>
+            </div>
+          </div>
+          {records.length > 0 && (
+            <div style={{ marginTop: 16 }}>
+              <h4 style={{ color: "#d1d5db", marginBottom: 8, fontSize: 13, textTransform: "uppercase", letterSpacing: 1 }}>Últimos reportes NO OK</h4>
+              {records.slice(0, 6).map((r, i) => (
+                <div key={i} style={styles.modalRecord}>
+                  <span style={{ color: "#9ca3af", minWidth: 55 }}>{new Date(r.date).toLocaleDateString("es-AR", { day: "2-digit", month: "short" })}</span>
+                  <span style={{ color: "#fca5a5", fontWeight: 600, flex: 1 }}>{r.item}</span>
+                  <span style={{ color: "#6b7280", fontSize: 12 }}>{r.operario}</span>
+                </div>
+              ))}
+            </div>
           )}
         </div>
-      ))}
+      </div>
     </div>
   );
 }
-
-// ─── Estilos del RecordView ───────────────────────────────────
-const rs = {
-  sectionDesc: { fontSize: 13, color: "#9ca3af", marginBottom: 16, lineHeight: 1.5 },
-  tableWrap: { overflowX: "auto", borderRadius: 10, border: "1px solid #1f2937" },
-  table: { width: "100%", borderCollapse: "collapse", fontSize: 12 },
-  th: {
-    padding: "10px 12px", textAlign: "left", background: "#111827",
-    color: "#9ca3af", fontWeight: 700, fontSize: 10, textTransform: "uppercase",
-    letterSpacing: 1, borderBottom: "1px solid #1f2937", whiteSpace: "nowrap",
-  },
-  tr: { borderBottom: "1px solid #1f293766" },
-  td: { padding: "10px 12px", verticalAlign: "middle" },
-  panel: {
-    marginTop: 20, padding: 16, background: "#111827",
-    borderRadius: 10, border: "1px solid #1f2937",
-  },
-  panelHeader: {
-    display: "flex", justifyContent: "space-between", alignItems: "center",
-    marginBottom: 14,
-  },
-  panelTitle: {
-    margin: 0, fontSize: 14, color: "#e5e7eb",
-    display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap",
-  },
-  panelCount: {
-    fontSize: 11, color: "#6b7280", background: "#1f2937",
-    padding: "2px 8px", borderRadius: 4, fontWeight: 400,
-  },
-  closeBtn: {
-    background: "transparent", border: "1px solid #374151",
-    color: "#6b7280", padding: "4px 10px", borderRadius: 6,
-    cursor: "pointer", fontFamily: "inherit", fontSize: 13, flexShrink: 0,
-  },
-  // ── Drawer mobile ──
-  drawer: {
-    position: "fixed", bottom: 0, left: 0, right: 0,
-    background: "#111827", borderRadius: "16px 16px 0 0",
-    border: "1px solid #1f2937", borderBottom: "none",
-    zIndex: 999, maxHeight: "80vh",
-    display: "flex", flexDirection: "column",
-    boxShadow: "0 -20px 60px rgba(0,0,0,0.6)",
-  },
-  drawerHandle: {
-    width: 40, height: 4, borderRadius: 2, background: "#374151",
-    margin: "12px auto 0", flexShrink: 0,
-  },
-  drawerHeader: {
-    display: "flex", justifyContent: "space-between", alignItems: "flex-start",
-    padding: "16px 20px 12px", borderBottom: "1px solid #1f2937", flexShrink: 0,
-  },
-  drawerTitle: { fontSize: 14, fontWeight: 700, color: "#f3f4f6", marginBottom: 3 },
-  drawerCount: { fontSize: 11, color: "#6b7280" },
-  drawerBody: { overflowY: "auto", padding: "14px 16px 24px", flex: 1 },
-};
-
 
 const styles = {
   root: { fontFamily: "'JetBrains Mono', 'SF Mono', 'Fira Code', monospace", background: "#0a0f1a", color: "#e5e7eb", minHeight: "100vh" },
@@ -1056,6 +843,7 @@ const styles = {
   recordDetail: { marginTop: 20, padding: 16, background: "#111827", borderRadius: 10, border: "1px solid #1f2937" },
   recordDetailTitle: { margin: 0, fontSize: 14, color: "#e5e7eb", marginBottom: 12, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" },
   recordCount: { fontSize: 11, color: "#6b7280", background: "#1f2937", padding: "2px 8px", borderRadius: 4 },
+  recordList: { display: "flex", flexDirection: "column", gap: 6 },
   recordItem: { display: "flex", alignItems: "center", gap: 12, padding: "8px 12px", background: "#0d1117", borderRadius: 6, border: "1px solid #1f2937", fontSize: 12, flexWrap: "wrap" },
   recordDate: { color: "#9ca3af", minWidth: 50, fontWeight: 600 },
   recordTurno: { color: "#6b7280", fontSize: 10, background: "#1f2937", padding: "2px 6px", borderRadius: 3, fontWeight: 600 },
