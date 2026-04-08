@@ -3,7 +3,6 @@ import './App.css';
 import FueraDeServicio from './FueraDeServicio.jsx';
 import { supabase } from './supabaseClient.js';
 
-// ─── Responsive hook ──────────────────────────────────────────
 function useIsMobile() {
   const [isMobile, setIsMobile] = useState(
     typeof window !== "undefined" ? window.innerWidth < 768 : false
@@ -16,45 +15,6 @@ function useIsMobile() {
   return isMobile;
 }
 
-// ─── Constantes estáticas ────────────────────────────────────
-const SECTORS = [
-  "ALMACEN", "EXPEDICIÓN", "FRACCIONADO", "VERTICALIZADA",
-  "ESTIBAS", "ETIQUETAS", "VARIETAL NORTE", "VARIETAL SUR", "TRAPICHE", "MANTENIMIENTO",
-];
-
-const EQUIPMENT = [
-  { id: "AE-25",  name: "AE N°25 TCM FG25T3",     type: "AE GLP",        sector: "ALMACEN",        horómetro: 12450 },
-  { id: "AE-34",  name: "AE CAT N°34",              type: "AE GLP",        sector: "EXPEDICIÓN",     horómetro: 8920  },
-  { id: "AE-27",  name: "AE N°27 TCM FG25T3",      type: "AE GLP",        sector: "ALMACEN",        horómetro: 15230 },
-  { id: "AE-02",  name: "AE N°2 MITSUBISHI",        type: "AE GLP",        sector: "FRACCIONADO",    horómetro: 18750 },
-  { id: "AE-05",  name: "AE N°5 TCM FG25T3",       type: "AE GLP",        sector: "VERTICALIZADA",  horómetro: 11200 },
-  { id: "AE-22",  name: "AE N°22 MITSUBISHI",       type: "AE GLP",        sector: "ESTIBAS",        horómetro: 22100 },
-  { id: "AE-16",  name: "AE N°16 TCM ELECTR.",      type: "AE ELÉCTRICO",  sector: "ETIQUETAS",      horómetro: 9800  },
-  { id: "AE-21",  name: "AE N°21 SANTA ANA",        type: "AE GLP",        sector: "VARIETAL NORTE", horómetro: 14300 },
-  { id: "AE-38",  name: "AE N°38 CAT",              type: "AE GLP",        sector: "VARIETAL SUR",   horómetro: 7650  },
-  { id: "AE-31",  name: "AE N°31 TOYOTA",           type: "AE GLP",        sector: "TRAPICHE",       horómetro: 5400  },
-  { id: "AE-20",  name: "AE N°20 TCM ELECTR.",      type: "AE ELÉCTRICO",  sector: "ALMACEN",        horómetro: 16800 },
-  { id: "AE-36",  name: "AE N°36 CAT",              type: "AE GLP",        sector: "EXPEDICIÓN",     horómetro: 6200  },
-  { id: "AP-07",  name: "APILADORA N°7",             type: "APILADORA",     sector: "FRACCIONADO",    horómetro: null  },
-  { id: "AE-28",  name: "AE N°28 TCM FG25T3",      type: "AE GLP",        sector: "ALMACEN",        horómetro: 13100 },
-  { id: "AE-37",  name: "AE N°37 CAT",              type: "AE GLP",        sector: "VERTICALIZADA",  horómetro: 7100  },
-  { id: "AE-07",  name: "AE N°7 TCM COMB.",         type: "AE GLP",        sector: "ESTIBAS",        horómetro: 24500 },
-  { id: "AE-35",  name: "AE N°35 CAT",              type: "AE GLP",        sector: "EXPEDICIÓN",     horómetro: 6900  },
-  { id: "AE-15",  name: "AE N°15 TCM COMB.",        type: "AE GLP",        sector: "ETIQUETAS",      horómetro: 19200 },
-  { id: "AE-32",  name: "AE N°32 TOYOTA",           type: "AE GLP",        sector: "VARIETAL NORTE", horómetro: 4800  },
-  { id: "AE-33",  name: "AE N°33 TOYOTA",           type: "AE GLP",        sector: "VARIETAL SUR",   horómetro: 5100  },
-  { id: "AE-30",  name: "AE N°30 TOYOTA",           type: "AE GLP",        sector: "TRAPICHE",       horómetro: 5900  },
-  { id: "AE-29",  name: "AE N°29 TOYOTA",           type: "AE GLP",        sector: "ALMACEN",        horómetro: 5600  },
-  { id: "AE-06",  name: "AE N°6 TCM NUEVO",         type: "AE GLP",        sector: "FRACCIONADO",    horómetro: 2100  },
-  { id: "AP-06",  name: "APILADORA N°6 TCM",        type: "APILADORA",     sector: "VERTICALIZADA",  horómetro: null  },
-  { id: "AE-26",  name: "AE N°26 TCM SS27C",        type: "AE GLP",        sector: "ESTIBAS",        horómetro: 17400 },
-  { id: "AP-04",  name: "APILADORA N°4 TCM",        type: "APILADORA",     sector: "ETIQUETAS",      horómetro: null  },
-  { id: "AE-12K", name: "AE N°12 KOMATSU",          type: "AE GLP",        sector: "TRAPICHE",       horómetro: 20100 },
-  { id: "CONT-1", name: "CONTAINERA KONECRANES",    type: "CONTAINERA",    sector: "EXPEDICIÓN",     horómetro: 3200  },
-  { id: "CAM-R",  name: "CAMIÓN 1114 ROJO",         type: "CAMIÓN",        sector: "EXPEDICIÓN",     horómetro: 45200 },
-  { id: "CAM-A",  name: "CAMIÓN 1114 AZUL",         type: "CAMIÓN",        sector: "EXPEDICIÓN",     horómetro: 52100 },
-];
-
 const CHECK_ITEMS = [
   "Extintor/Patente/Asiento", "Cinturón de seguridad", "Espejos laterales/retrovisor",
   "Bocina/Alarma retroceso", "Luces/Guiñes/Balizas", "Garrafa GLP",
@@ -63,116 +23,62 @@ const CHECK_ITEMS = [
 ];
 
 const STATUS_CONFIG = {
-  ok:             { label: "OK",             color: "#16a34a", bg: "#052e16", bgLight: "#14532d", icon: "●" },
-  warning:        { label: "Service <24h",   color: "#eab308", bg: "#422006", bgLight: "#713f12", icon: "▲" },
-  no_ok:          { label: "No OK",          color: "#ef4444", bg: "#450a0a", bgLight: "#7f1d1d", icon: "■" },
-  fuera_servicio: { label: "Fuera Servicio", color: "#6b7280", bg: "#1f2937", bgLight: "#374151", icon: "✕" },
+  ok:             { label: "OK",             color: "#16a34a", bg: "#052e16", icon: "●" },
+  warning:        { label: "Service <24h",   color: "#eab308", bg: "#422006", icon: "▲" },
+  no_ok:          { label: "No OK",          color: "#ef4444", bg: "#450a0a", icon: "■" },
+  fuera_servicio: { label: "Fuera Servicio", color: "#6b7280", bg: "#1f2937", icon: "✕" },
 };
 
 const DAYS = ["LUN", "MAR", "MIÉ", "JUE", "VIE", "SÁB", "DOM"];
 
-// ═══════════════════════════════════════════════════════════════
-// MAPEO: nombres del Microsoft Forms → IDs del dashboard
-// ═══════════════════════════════════════════════════════════════
-
-const EQUIP_NAME_TO_ID = {
-  "AUTOELEVADOR N° 25 TCM FG25T3 2B530655": "AE-25",
-  "AUTOELEVADOR CAT N° 34": "AE-34",
-  "AUTOELEVADOR N° 27 TCM FG25T3": "AE-27",
-  "AUTOELEVADOR N°2 MITSUBISHI C": "AE-02",
-  "AUTOELEVADOR N°2 MITSUBISHI": "AE-02",
-  "AUTOELEVADOR N° 5 TCM FG25T3": "AE-05",
-  "AUTOELEVADOR N° 22 MITSUBISHI": "AE-22",
-  "AUTOELEVADOR N° 16 TCM ELECTRI": "AE-16",
-  "AUTOELEVADOR N° 16 TCM ELECTRICO": "AE-16",
-  "AUTOELEVADOR N° 21 VINO SANTA ANA": "AE-21",
-  "AUTOELEVADOR N° 21 SANTA ANA": "AE-21",
-  "AUTOELEVADOR N° 38 CAT": "AE-38",
-  "AUTOELEVADOR N°31 TOYOTA COMB": "AE-31",
-  "AUTOELEVADOR N° 20 TCM ELECTRI": "AE-20",
-  "AUTOELEVADOR N° 20 TCM ELECTRICO": "AE-20",
-  "AUTOELEVADOR N°36 CAT": "AE-36",
-  "APILADORA N° 7": "AP-07",
-  "AUTOELEVADOR N° 28 TCM FG25T3": "AE-28",
-  "AUTOELEVADOR N°37 CAT": "AE-37",
-  "AUTOELEVADOR N°7 TCM COMBUSTIO": "AE-07",
-  "AUTOELEVADOR N°7 TCM COMBUSTION": "AE-07",
-  "AUTOELEVADOR N°35 CAT": "AE-35",
-  "AUTOELEVADOR N°15 TCM COMBUSTI": "AE-15",
-  "AUTOELEVADOR N°15 TCM COMBUSTION": "AE-15",
-  "AUTOELEVADOR N°32 TOYOTA COMB": "AE-32",
-  "AUTOELEVADOR N°33 TOYOTA COMB": "AE-33",
-  "AUTOELEVADOR N°30 TOYOTA COMB": "AE-30",
-  "AUTOELEVADOR N°29 TOYOTA COMB": "AE-29",
-  "AUTOELEVADOR N°6 TCM NUEVO C": "AE-06",
-  "AUTOELEVADOR N°6 TCM NUEVO": "AE-06",
-  "APILADORA N° 6 TCM": "AP-06",
-  "AUTOELEVADOR N° 26 TCM SS27C": "AE-26",
-  "APILADORA N° 4 TCM": "AP-04",
-  "AUTOELEVADOR N°12 KOMATSU COMB": "AE-12K",
-  "CONTAINERA KONAGRANES SWV4531": "CONT-1",
-  "CONTAINERA KONECRANES": "CONT-1",
-  "CAMION 1114 ROJO": "CAM-R",
-  "CAMIÓN 1114 ROJO": "CAM-R",
-  "CAMION 1114 AZUL EXPEDICION": "CAM-A",
-  "CAMIÓN 1114 AZUL": "CAM-A",
+const DAY_INDEX = {
+  LUNES: 0, MARTES: 1, MIERCOLES: 2, MIÉRCOLES: 2,
+  JUEVES: 3, VIERNES: 4, SABADO: 5, SÁBADO: 5, DOMINGO: 6,
 };
 
-function resolveEquipId(formsName) {
-  if (!formsName) return null;
-  const trimmed = formsName.trim().toUpperCase();
-  for (const [key, val] of Object.entries(EQUIP_NAME_TO_ID)) {
-    if (key.toUpperCase() === trimmed) return val;
-  }
-  for (const [key, val] of Object.entries(EQUIP_NAME_TO_ID)) {
-    if (trimmed.includes(key.toUpperCase()) || key.toUpperCase().includes(trimmed)) return val;
-  }
-  const numMatch = trimmed.match(/N°?\s*(\d+)/);
-  if (numMatch) {
-    const num = numMatch[1];
-    if (trimmed.includes("APILADORA")) return `AP-${num.padStart(2, "0")}`;
-    return `AE-${num.padStart(2, "0")}`;
-  }
-  return null;
-}
-
-// ═══════════════════════════════════════════════════════════════
-// MAPEO: columnas de checks → ítems del checklist
-// ═══════════════════════════════════════════════════════════════
-
 const CHECK_FIELD_MAP = [
-  { field: "extintor",       obs: "obs_extintor",       label: "Extintor/Patente/Asiento" },
-  { field: "cinturon",       obs: "obs_cinturon",       label: "Cinturón de seguridad" },
-  { field: "espejos",        obs: "obs_espejos",        label: "Espejos laterales/retrovisor" },
-  { field: "bocina",         obs: "obs_bocina",         label: "Bocina/Alarma retroceso" },
-  { field: "luces",          obs: "obs_luces",          label: "Luces/Guiñes/Balizas" },
-  { field: "glp",            obs: "obs_glp",            label: "Garrafa GLP" },
-  { field: "frenos",         obs: "obs_frenos",         label: "Frenos servicio/mano" },
-  { field: "bateria",        obs: "obs_bateria",        label: "Batería/Fluidos" },
-  { field: "encendido",      obs: "obs_encendido",      label: "Encendido" },
-  { field: "torre",          obs: "obs_torre",          label: "Torre elevación" },
-  { field: "fluidos",        obs: "obs_fluidos",        label: "Pérdidas agua/aceite" },
-  { field: "liquido_frenos", obs: "obs_liq_frenos",     label: "Líquido de frenos" },
-  { field: "neumaticos",     obs: "obs_neumaticos",     label: "Neumáticos/Ruedas" },
-  { field: "junta_valvula",  obs: "obs_junta_valvula",  label: "Junta válvula carga" },
+  { field: "extintor",       obs: "obs_extintor",      label: "Extintor/Patente/Asiento" },
+  { field: "cinturon",       obs: "obs_cinturon",      label: "Cinturón de seguridad" },
+  { field: "espejos",        obs: "obs_espejos",       label: "Espejos laterales/retrovisor" },
+  { field: "bocina",         obs: "obs_bocina",        label: "Bocina/Alarma retroceso" },
+  { field: "luces",          obs: "obs_luces",         label: "Luces/Guiñes/Balizas" },
+  { field: "glp",            obs: "obs_glp",           label: "Garrafa GLP" },
+  { field: "frenos",         obs: "obs_frenos",        label: "Frenos servicio/mano" },
+  { field: "bateria",        obs: "obs_bateria",       label: "Batería/Fluidos" },
+  { field: "encendido",      obs: "obs_encendido",     label: "Encendido" },
+  { field: "torre",          obs: "obs_torre",         label: "Torre elevación" },
+  { field: "fluidos",        obs: "obs_fluidos",       label: "Pérdidas agua/aceite" },
+  { field: "liquido_frenos", obs: "obs_liq_frenos",    label: "Líquido de frenos" },
+  { field: "neumaticos",     obs: "obs_neumaticos",    label: "Neumáticos/Ruedas" },
+  { field: "junta_valvula",  obs: "obs_junta_valvula", label: "Junta válvula carga" },
 ];
 
-// ═══════════════════════════════════════════════════════════════
-// TRANSFORMADORES
-// ═══════════════════════════════════════════════════════════════
+// ── Construye mapa nombreEquipo → id_corto desde tabla flota ──
+function buildEquipoMap(flotaData) {
+  const map = {};
+  if (!flotaData?.length) return map;
+  flotaData.forEach((row) => {
+    if (row.equipo && row.id_corto)
+      map[row.equipo.trim().toUpperCase()] = row.id_corto;
+  });
+  return map;
+}
 
-function transformChecksToNoOk(checksData) {
+// ── Checks → registros NO OK para el heatmap ──────────────────
+function transformChecksToNoOk(checksData, equipoMap) {
   const records = [];
   if (!checksData?.length) return records;
   checksData.forEach((check) => {
-    const equipId = resolveEquipId(check.equipo);
+    const equipId = equipoMap[(check.equipo || "").trim().toUpperCase()];
     if (!equipId) return;
     CHECK_FIELD_MAP.forEach(({ field, obs, label }) => {
-      const value = (check[field] || "").toUpperCase().trim();
-      if (value === "NO OK") {
+      if ((check[field] || "").toUpperCase().trim() === "NO OK") {
         records.push({
-          equipmentId: equipId, date: check.fecha, item: label,
-          turno: check.turno || "—", operario: check.operario || "—",
+          equipmentId: equipId,
+          date: check.fecha,
+          item: label,
+          turno: check.turno || "—",
+          operario: check.operario || "—",
           descripcion: check[obs] || "Sin descripción",
         });
       }
@@ -181,134 +87,112 @@ function transformChecksToNoOk(checksData) {
   return records;
 }
 
-function transformServices(servicesData, flotaIdMap) {
+// ── services_template → eventos calendario para la semana ─────
+function transformServicesTemplate(servicesData, equipoMap, weekOffset = 0) {
   const events = [];
   if (!servicesData?.length) return events;
+  const now = new Date();
+  const monday = new Date(now);
+  monday.setDate(now.getDate() - ((now.getDay() + 6) % 7) + weekOffset * 7);
+  monday.setHours(0, 0, 0, 0);
   servicesData.forEach((svc) => {
-    const equipId = flotaIdMap[svc.id_Equipo || svc["id_Equipo"]] || null;
-    const equipInfo = equipId ? EQUIPMENT.find((e) => e.id === equipId) : null;
-    const date = resolveServiceDate(svc.semana, svc.dia);
-    if (!date || !equipId) return;
-    const timeStr = svc.inicio || "08:00";
+    const dayOffset = DAY_INDEX[svc.dia?.toUpperCase().trim()];
+    if (dayOffset === undefined) return;
+    const equipId = equipoMap[(svc.equipo || "").trim().toUpperCase()];
+    if (!equipId) return;
+    const date = new Date(monday);
+    date.setDate(monday.getDate() + dayOffset);
+    const dateStr = date.toISOString().split("T")[0];
+    const timeStr = svc.inicio || "08:00:00";
     events.push({
-      equipmentId: equipId, equipmentName: equipInfo?.name || equipId,
-      sector: equipInfo?.sector || "—",
-      datetime: `${date}T${timeStr}`, type: "semanal",
+      equipmentId: equipId,
+      equipmentName: svc.equipo,
+      sector: "—",
+      datetime: `${dateStr}T${timeStr}`,
+      type: "semanal",
     });
   });
   return events;
 }
 
-function resolveServiceDate(semana, dia) {
-  if (!semana) return null;
-  const dayIndex = resolveDayIndex(dia);
-  const isoMatch = String(semana).match(/(\d{4})-?W(\d{1,2})/i);
-  if (isoMatch) return getDateFromISOWeek(parseInt(isoMatch[1]), parseInt(isoMatch[2]), dayIndex);
-  const weekNum = parseInt(semana);
-  if (!isNaN(weekNum) && weekNum >= 1 && weekNum <= 53) return getDateFromISOWeek(new Date().getFullYear(), weekNum, dayIndex);
-  if (/^\d{4}-\d{2}-\d{2}$/.test(String(semana))) {
-    const d = new Date(semana); d.setDate(d.getDate() + dayIndex);
-    return d.toISOString().split("T")[0];
-  }
-  return null;
-}
-
-function resolveDayIndex(dia) {
-  if (!dia) return 0;
-  const map = { LUNES: 0, MARTES: 1, "MIÉRCOLES": 2, MIERCOLES: 2, JUEVES: 3, VIERNES: 4, "SÁBADO": 5, SABADO: 5, DOMINGO: 6 };
-  return map[dia.toUpperCase().trim()] ?? 0;
-}
-
-function getDateFromISOWeek(year, week, dayOffset = 0) {
-  const jan4 = new Date(year, 0, 4);
-  const dow = jan4.getDay() || 7;
-  const mon = new Date(jan4);
-  mon.setDate(jan4.getDate() - dow + 1 + (week - 1) * 7 + dayOffset);
-  return mon.toISOString().split("T")[0];
-}
-
+// ── fuera_de_servicio → formato interno ───────────────────────
 function transformFds(fdsData) {
   if (!fdsData?.length) return [];
   return fdsData.map((r) => ({
-    id: r.id, equipmentId: r.equipment_id, equipmentName: r.equipment_name,
-    sector: r.sector, type: r.type, startDate: r.start_date,
-    reason: r.reason, resolved: r.resolved ?? false, resolvedDate: r.resolved_date,
+    id: r.id,
+    equipmentId: r.equipment_id,
+    equipmentName: r.equipment_name,
+    sector: r.sector,
+    type: r.type,
+    startDate: r.start_date,
+    reason: r.reason,
+    resolved: r.resolved ?? false,
+    resolvedDate: r.resolved_date,
   }));
 }
 
-function buildFlotaIdMap(flotaData) {
-  const map = {};
-  if (!flotaData) return map;
-  flotaData.forEach((row) => {
-    const equipId = resolveEquipId(row.equipo);
-    if (equipId) map[row.id] = equipId;
-  });
-  return map;
+// ── flota → formato interno ────────────────────────────────────
+function transformFlota(flotaData) {
+  if (!flotaData?.length) return [];
+  return flotaData
+    .filter((row) => row.activo !== false)
+    .map((row) => ({
+      id: row.id_corto,
+      name: row.equipo,
+      type: row.tipo,
+      sector: "—",
+      horómetro: row.horometro || null,
+      status: "ok",
+      nextService: null,
+    }));
 }
 
+// ── Status derivado desde datos en vivo ───────────────────────
 function deriveStatus(equipId, activeFdsIds, noOkRecords, serviceEvents) {
   if (activeFdsIds.has(equipId)) return "fuera_servicio";
   const now = new Date();
   const in24h = new Date(now.getTime() + 24 * 3600000);
-  if (serviceEvents.some((ev) => ev.equipmentId === equipId && new Date(ev.datetime) >= now && new Date(ev.datetime) <= in24h)) return "warning";
-  const threeDaysAgo = new Date(); threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
-  if (noOkRecords.some((r) => r.equipmentId === equipId && new Date(r.date) >= threeDaysAgo)) return "no_ok";
+  if (serviceEvents.some((ev) =>
+    ev.equipmentId === equipId &&
+    new Date(ev.datetime) >= now &&
+    new Date(ev.datetime) <= in24h
+  )) return "warning";
+  const threeDaysAgo = new Date();
+  threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
+  if (noOkRecords.some((r) =>
+    r.equipmentId === equipId && new Date(r.date) >= threeDaysAgo
+  )) return "no_ok";
   return "ok";
 }
 
-// ═══════════════════════════════════════════════════════════════
-// MOCK DATA (fallback)
-// ═══════════════════════════════════════════════════════════════
-
-const FDS_INITIAL = [
-  { id: 1, equipmentId: "AE-22", equipmentName: "AE N°22 MITSUBISHI", sector: "ESTIBAS", type: "AE GLP", startDate: "2026-03-25", reason: "Pérdida severa de aceite hidráulico en cilindro principal", resolved: false, resolvedDate: null },
-  { id: 2, equipmentId: "AE-07", equipmentName: "AE N°7 TCM COMB.", sector: "ESTIBAS", type: "AE GLP", startDate: "2026-03-27", reason: "Falla en caja de transmisión — en espera de repuesto TCM", resolved: false, resolvedDate: null },
-  { id: 3, equipmentId: "AE-20", equipmentName: "AE N°20 TCM ELECTR.", sector: "ALMACEN", type: "AE ELÉCTRICO", startDate: "2026-03-18", reason: "Cortocircuito en tablero de control eléctrico", resolved: true, resolvedDate: "2026-03-25" },
-  { id: 4, equipmentId: "CAM-A", equipmentName: "CAMIÓN 1114 AZUL", sector: "EXPEDICIÓN", type: "CAMIÓN", startDate: "2026-03-10", reason: "Falla en sistema de frenos — reparación completada", resolved: true, resolvedDate: "2026-03-15" },
+// ── Mock data (fallback) ──────────────────────────────────────
+const FLOTA_MOCK = [
+  { id: "AE-25",  name: "AE N° 25 TCM",   type: "AE GLP",     sector: "—", horómetro: 12450 },
+  { id: "AE-34",  name: "AE N° 34 CAT",   type: "AE GLP",     sector: "—", horómetro: 8920  },
+  { id: "AE-36",  name: "AE N°36 CAT",    type: "AE GLP",     sector: "—", horómetro: 6200  },
+  { id: "CONT-1", name: "CONTAINERA",      type: "CONTAINERA", sector: "—", horómetro: 3200  },
+  { id: "CAM-A",  name: "CAMIÓN AZUL",     type: "CAMIÓN",     sector: "—", horómetro: 52100 },
 ];
 
-function generateMockNoOk() {
-  const records = []; const now = new Date();
-  EQUIPMENT.forEach((eq) => {
-    for (let i = 0; i < Math.floor(Math.random() * 8); i++) {
-      const d = new Date(now); d.setDate(d.getDate() - Math.floor(Math.random() * 14));
-      records.push({ equipmentId: eq.id, date: d.toISOString().split("T")[0],
-        item: CHECK_ITEMS[Math.floor(Math.random() * CHECK_ITEMS.length)],
-        turno: ["MAÑANA", "TARDE", "NOCHE"][Math.floor(Math.random() * 3)],
-        operario: ["AGÜERO N.", "ALVAREZ C.", "BUSTOS D.", "CONTRERAS G.", "FERNANDEZ C."][Math.floor(Math.random() * 5)],
-        descripcion: ["Desgaste visible", "No funciona", "Requiere reemplazo", "Fuga detectada"][Math.floor(Math.random() * 4)],
-      });
-    }
-  });
-  return records;
-}
+const FDS_MOCK = [
+  { id: 1, equipmentId: "AE-25", equipmentName: "AE N° 25 TCM", sector: "—", type: "AE GLP", startDate: "2026-03-25", reason: "Demo — pérdida de aceite", resolved: false, resolvedDate: null },
+];
 
-function generateMockEvents() {
-  const events = []; const base = new Date();
-  base.setDate(base.getDate() - ((base.getDay() + 6) % 7));
-  EQUIPMENT.forEach((eq, idx) => {
-    const d = new Date(base); d.setDate(d.getDate() + (idx % 7));
-    events.push({ equipmentId: eq.id, equipmentName: eq.name, sector: eq.sector,
-      datetime: `${d.toISOString().split("T")[0]}T${String(7 + (idx % 10)).padStart(2, "0")}:00`, type: "semanal" });
-  });
-  return events;
-}
-
-// ═══════════════════════════════════════════════════════════════
+// ═════════════════════════════════════════════════════════════
 // COMPONENTE PRINCIPAL
-// ═══════════════════════════════════════════════════════════════
-
+// ═════════════════════════════════════════════════════════════
 export default function FleetDashboard() {
   const isMobile = useIsMobile();
   const [activeTab, setActiveTab] = useState("status");
-  const [sectorFilter, setSectorFilter] = useState("TODOS");
   const [typeFilter, setTypeFilter] = useState("TODOS");
   const [equipFilter, setEquipFilter] = useState("");
   const [statusDetailModal, setStatusDetailModal] = useState(null);
   const [calendarWeekOffset, setCalendarWeekOffset] = useState(0);
 
+  const [flota, setFlota] = useState([]);
+  const [equipoMap, setEquipoMap] = useState({});
   const [noOkRecords, setNoOkRecords] = useState([]);
-  const [serviceEvents, setServiceEvents] = useState([]);
+  const [servicesRaw, setServicesRaw] = useState([]);
   const [fdsRecords, setFdsRecords] = useState([]);
   const [loading, setLoading] = useState(true);
   const [dataSource, setDataSource] = useState("loading");
@@ -317,80 +201,96 @@ export default function FleetDashboard() {
     async function fetchData() {
       const isConfigured = import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY;
       if (!isConfigured) {
-        console.warn("⚠️ Supabase no configurado — datos demo");
-        setNoOkRecords(generateMockNoOk()); setServiceEvents(generateMockEvents());
-        setFdsRecords(FDS_INITIAL); setDataSource("mock"); setLoading(false); return;
+        setFlota(FLOTA_MOCK); setNoOkRecords([]); setServicesRaw([]);
+        setFdsRecords(FDS_MOCK); setDataSource("mock"); setLoading(false);
+        return;
       }
       try {
-        const since = new Date(); since.setDate(since.getDate() - 14);
+        const since = new Date();
+        since.setDate(since.getDate() - 14);
         const sinceStr = since.toISOString().split("T")[0];
+
         const [
-          { data: checksData, error: e1 }, { data: flotaData, error: e2 },
-          { data: servicesData, error: e3 }, { data: fdsData, error: e4 }
+          { data: flotaData,  error: e1 },
+          { data: checksData, error: e2 },
+          { data: svcData,    error: e3 },
+          { data: fdsData,    error: e4 },
         ] = await Promise.all([
+          supabase.from("flota").select("*").eq("activo", true),
           supabase.from("checks").select("*").gte("fecha", sinceStr),
-          supabase.from("flota").select("*"),
-          supabase.from("services").select("*"),
+          supabase.from("services_template").select("*"),
           supabase.from("fuera_de_servicio").select("*"),
         ]);
-        [e1,e2,e3,e4].forEach((e,i) => e && console.error(["checks","flota","services","fds"][i], e.message));
 
-        const flotaIdMap = buildFlotaIdMap(flotaData);
-        const noOk = transformChecksToNoOk(checksData);
-        const events = transformServices(servicesData, flotaIdMap);
+        [e1,e2,e3,e4].forEach((e,i) => e && console.error(["flota","checks","services_template","fds"][i], e.message));
+
+        const eqMap = buildEquipoMap(flotaData);
+        const flotaT = transformFlota(flotaData);
+        const noOk = transformChecksToNoOk(checksData, eqMap);
         const fds = transformFds(fdsData);
-        const hasReal = noOk.length > 0 || events.length > 0 || fds.length > 0;
 
-        setNoOkRecords(noOk.length > 0 ? noOk : generateMockNoOk());
-        setServiceEvents(events.length > 0 ? events : generateMockEvents());
-        setFdsRecords(fds.length > 0 ? fds : FDS_INITIAL);
-        setDataSource(hasReal ? "supabase" : "mock");
-        console.log(`📊 checks:${noOk.length} events:${events.length} fds:${fds.length}`);
+        setEquipoMap(eqMap);
+        setFlota(flotaT.length ? flotaT : FLOTA_MOCK);
+        setNoOkRecords(noOk);
+        setServicesRaw(svcData || []);
+        setFdsRecords(fds.length ? fds : FDS_MOCK);
+        setDataSource(flotaT.length ? "supabase" : "mock");
+        console.log(`📊 flota:${flotaT.length} checks:${noOk.length} svc:${svcData?.length} fds:${fds.length}`);
       } catch (err) {
-        console.error("Error general:", err.message);
-        setNoOkRecords(generateMockNoOk()); setServiceEvents(generateMockEvents());
-        setFdsRecords(FDS_INITIAL); setDataSource("mock");
+        console.error("Error:", err.message);
+        setFlota(FLOTA_MOCK); setNoOkRecords([]); setServicesRaw([]);
+        setFdsRecords(FDS_MOCK); setDataSource("mock");
       } finally { setLoading(false); }
     }
     fetchData();
   }, []);
 
-  // ─── TODOS los hooks ANTES del return condicional ───
+  const serviceEvents = useMemo(
+    () => transformServicesTemplate(servicesRaw, equipoMap, calendarWeekOffset),
+    [servicesRaw, equipoMap, calendarWeekOffset]
+  );
+
   const activeFdsIds = useMemo(
-    () => new Set(fdsRecords.filter((r) => !r.resolved).map((r) => r.equipmentId)), [fdsRecords]
+    () => new Set(fdsRecords.filter((r) => !r.resolved).map((r) => r.equipmentId)),
+    [fdsRecords]
   );
 
   const effectiveEquipment = useMemo(() => {
     const nextSvcMap = {};
     const now = new Date();
-    serviceEvents.forEach((ev) => {
+    // Para nextService usamos siempre la semana actual (offset 0)
+    const thisWeekEvents = transformServicesTemplate(servicesRaw, equipoMap, 0);
+    thisWeekEvents.forEach((ev) => {
       const d = new Date(ev.datetime);
       if (d >= now && (!nextSvcMap[ev.equipmentId] || d < new Date(nextSvcMap[ev.equipmentId])))
         nextSvcMap[ev.equipmentId] = ev.datetime;
     });
-    return EQUIPMENT.map((eq) => ({
-      ...eq, status: deriveStatus(eq.id, activeFdsIds, noOkRecords, serviceEvents),
+    return flota.map((eq) => ({
+      ...eq,
+      status: deriveStatus(eq.id, activeFdsIds, noOkRecords, thisWeekEvents),
       nextService: nextSvcMap[eq.id] || null,
     }));
-  }, [activeFdsIds, noOkRecords, serviceEvents]);
+  }, [flota, activeFdsIds, noOkRecords, servicesRaw, equipoMap]);
+
+  const types = useMemo(() => [...new Set(flota.map((e) => e.type))], [flota]);
 
   const filteredEquipment = useMemo(() => effectiveEquipment.filter((e) => {
-    if (sectorFilter !== "TODOS" && e.sector !== sectorFilter) return false;
     if (typeFilter !== "TODOS" && e.type !== typeFilter) return false;
     if (equipFilter && !e.id.toLowerCase().includes(equipFilter.toLowerCase()) && !e.name.toLowerCase().includes(equipFilter.toLowerCase())) return false;
     return true;
-  }), [effectiveEquipment, sectorFilter, typeFilter, equipFilter]);
+  }), [effectiveEquipment, typeFilter, equipFilter]);
 
   const statusCounts = useMemo(() => {
     const c = { ok: 0, warning: 0, no_ok: 0, fuera_servicio: 0 };
-    filteredEquipment.forEach((e) => c[e.status]++); c.total = filteredEquipment.length; return c;
+    filteredEquipment.forEach((e) => c[e.status]++);
+    c.total = filteredEquipment.length;
+    return c;
   }, [filteredEquipment]);
-
-  const types = [...new Set(EQUIPMENT.map((e) => e.type))];
 
   const addFds = useCallback(async (entry) => {
     if (!import.meta.env.VITE_SUPABASE_URL) {
-      setFdsRecords((p) => [...p, { id: Date.now(), ...entry, resolved: false, resolvedDate: null }]); return;
+      setFdsRecords((p) => [...p, { id: Date.now(), ...entry, resolved: false, resolvedDate: null }]);
+      return;
     }
     const { data, error } = await supabase.from("fuera_de_servicio").insert([{
       equipment_id: entry.equipmentId, equipment_name: entry.equipmentName,
@@ -403,13 +303,14 @@ export default function FleetDashboard() {
   const resolveFds = useCallback(async (id) => {
     const today = new Date().toISOString().split("T")[0];
     if (!import.meta.env.VITE_SUPABASE_URL) {
-      setFdsRecords((p) => p.map((r) => r.id === id ? { ...r, resolved: true, resolvedDate: today } : r)); return;
+      setFdsRecords((p) => p.map((r) => r.id === id ? { ...r, resolved: true, resolvedDate: today } : r));
+      return;
     }
-    const { error } = await supabase.from("fuera_de_servicio").update({ resolved: true, resolved_date: today }).eq("id", id);
+    const { error } = await supabase.from("fuera_de_servicio")
+      .update({ resolved: true, resolved_date: today }).eq("id", id);
     if (!error) setFdsRecords((p) => p.map((r) => r.id === id ? { ...r, resolved: true, resolvedDate: today } : r));
   }, []);
 
-  // ─── Loading screen DESPUÉS de todos los hooks ───
   if (loading) {
     return (
       <div style={{ ...styles.root, display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh" }}>
@@ -419,10 +320,10 @@ export default function FleetDashboard() {
   }
 
   const TABS = [
-    { key: "status",   label: isMobile ? "Flota" : "Status Flota", icon: "◉" },
-    { key: "calendar", label: isMobile ? "Calendario" : "Calendario Semanal", icon: "◫" },
-    { key: "records",  label: isMobile ? "Registro" : "Registro NO OK (14d)", icon: "◨" },
-    { key: "fds",      label: isMobile ? "Fuera Serv." : "Fuera de Servicio", icon: "⊘" },
+    { key: "status",   label: isMobile ? "Flota"      : "Status Flota",         icon: "◉" },
+    { key: "calendar", label: isMobile ? "Calendario" : "Calendario Semanal",   icon: "◫" },
+    { key: "records",  label: isMobile ? "Registro"   : "Registro NO OK (14d)", icon: "◨" },
+    { key: "fds",      label: isMobile ? "Fuera Serv.": "Fuera de Servicio",    icon: "⊘" },
   ];
 
   return (
@@ -440,14 +341,16 @@ export default function FleetDashboard() {
           </div>
         </div>
         <div style={styles.headerRight} className="fleet-header-right">
-          <span style={styles.dateLabel}>{new Date().toLocaleDateString("es-AR", { weekday: isMobile ? "short" : "long", year: "numeric", month: "long", day: "numeric" })}</span>
+          <span style={styles.dateLabel}>
+            {new Date().toLocaleDateString("es-AR", { weekday: isMobile ? "short" : "long", year: "numeric", month: "long", day: "numeric" })}
+          </span>
           <div style={styles.liveIndicator}><span style={styles.liveDot} />ACTIVO</div>
         </div>
       </header>
 
       {dataSource === "mock" && (
         <div style={{ padding: "8px 24px", background: "#422006", borderBottom: "1px solid #92400e", fontSize: 12, color: "#fbbf24", display: "flex", alignItems: "center", gap: 8 }}>
-          <span>▲</span><span>Modo demostración — tablas de Supabase vacías o no conectadas.</span>
+          <span>▲</span><span>Modo demostración — Supabase no conectado o tablas vacías.</span>
         </div>
       )}
 
@@ -462,13 +365,6 @@ export default function FleetDashboard() {
 
       <div style={styles.filtersBar} className="fleet-filters-bar">
         <div style={styles.filterGroup} className="fleet-filter-group">
-          <label style={styles.filterLabel}>Sector</label>
-          <select style={styles.select} value={sectorFilter} onChange={(e) => setSectorFilter(e.target.value)}>
-            <option value="TODOS">Todos los sectores</option>
-            {SECTORS.map((s) => <option key={s} value={s}>{s}</option>)}
-          </select>
-        </div>
-        <div style={styles.filterGroup} className="fleet-filter-group">
           <label style={styles.filterLabel}>Tipo Equipo</label>
           <select style={styles.select} value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}>
             <option value="TODOS">Todos los tipos</option>
@@ -477,38 +373,52 @@ export default function FleetDashboard() {
         </div>
         <div style={styles.filterGroup} className="fleet-filter-group">
           <label style={styles.filterLabel}>N° Equipo</label>
-          <input style={styles.input} placeholder="Buscar equipo..." value={equipFilter} onChange={(e) => setEquipFilter(e.target.value)} />
+          <input style={styles.input} placeholder="Buscar equipo..." value={equipFilter}
+            onChange={(e) => setEquipFilter(e.target.value)} />
         </div>
-        {(sectorFilter !== "TODOS" || typeFilter !== "TODOS" || equipFilter) && (
-          <button className="fleet-clear-btn" style={styles.clearBtn} onClick={() => { setSectorFilter("TODOS"); setTypeFilter("TODOS"); setEquipFilter(""); }}>✕ Limpiar</button>
+        {(typeFilter !== "TODOS" || equipFilter) && (
+          <button className="fleet-clear-btn" style={styles.clearBtn}
+            onClick={() => { setTypeFilter("TODOS"); setEquipFilter(""); }}>✕ Limpiar</button>
         )}
       </div>
 
       <main style={styles.content} className="fleet-content">
-        {activeTab === "status"   && <StatusFlota equipment={filteredEquipment} counts={statusCounts} onDetail={setStatusDetailModal} isMobile={isMobile} />}
-        {activeTab === "calendar" && <CalendarView equipment={filteredEquipment} events={serviceEvents} weekOffset={calendarWeekOffset} setWeekOffset={setCalendarWeekOffset} isMobile={isMobile} />}
-        {activeTab === "records"  && <RecordView equipment={filteredEquipment} records={noOkRecords} isMobile={isMobile} />}
-        {activeTab === "fds"      && <FueraDeServicio records={fdsRecords} equipment={EQUIPMENT} onAdd={addFds} onResolve={resolveFds} isMobile={isMobile} />}
+        {activeTab === "status" && (
+          <StatusFlota equipment={filteredEquipment} counts={statusCounts}
+            onDetail={setStatusDetailModal} isMobile={isMobile} />
+        )}
+        {activeTab === "calendar" && (
+          <CalendarView equipment={filteredEquipment} events={serviceEvents}
+            weekOffset={calendarWeekOffset} setWeekOffset={setCalendarWeekOffset} isMobile={isMobile} />
+        )}
+        {activeTab === "records" && (
+          <RecordView equipment={filteredEquipment} records={noOkRecords} isMobile={isMobile} />
+        )}
+        {activeTab === "fds" && (
+          <FueraDeServicio records={fdsRecords} equipment={flota}
+            onAdd={addFds} onResolve={resolveFds} isMobile={isMobile} />
+        )}
       </main>
 
       {statusDetailModal && (
-        <DetailModal equipment={statusDetailModal} records={noOkRecords.filter((r) => r.equipmentId === statusDetailModal.id)} onClose={() => setStatusDetailModal(null)} />
+        <DetailModal equipment={statusDetailModal}
+          records={noOkRecords.filter((r) => r.equipmentId === statusDetailModal.id)}
+          onClose={() => setStatusDetailModal(null)} />
       )}
     </div>
   );
 }
 
-
-// ═══════════════════════════════════════════════════════════════
+// ═════════════════════════════════════════════════════════════
 // SUB-COMPONENTES
-// ═══════════════════════════════════════════════════════════════
+// ═════════════════════════════════════════════════════════════
 
 function StatusFlota({ equipment, counts, onDetail, isMobile }) {
   return (
     <div>
       <div style={styles.statusCards} className="fleet-status-cards">
         {Object.entries(STATUS_CONFIG).map(([key, cfg]) => (
-          <div key={key} style={{ ...styles.statusCard, borderColor: cfg.color, background: cfg.bg }} className="fleet-status-card">
+          <div key={key} style={{ ...styles.statusCard, borderColor: cfg.color, background: cfg.bg }}>
             <div style={{ ...styles.statusIcon, color: cfg.color }}>{cfg.icon}</div>
             <div style={styles.statusCount}>
               <span style={{ ...styles.statusNumber, color: cfg.color }}>{counts[key]}</span>
@@ -516,7 +426,7 @@ function StatusFlota({ equipment, counts, onDetail, isMobile }) {
             </div>
           </div>
         ))}
-        <div style={{ ...styles.statusCard, borderColor: "#8b5cf6", background: "#1e1b4b" }} className="fleet-status-card">
+        <div style={{ ...styles.statusCard, borderColor: "#8b5cf6", background: "#1e1b4b" }}>
           <div style={{ ...styles.statusIcon, color: "#8b5cf6" }}>Σ</div>
           <div style={styles.statusCount}>
             <span style={{ ...styles.statusNumber, color: "#8b5cf6" }}>{counts.total}</span>
@@ -527,26 +437,53 @@ function StatusFlota({ equipment, counts, onDetail, isMobile }) {
       <div style={styles.tableContainer} className="fleet-table-container">
         <table style={styles.table}>
           <thead><tr>
-            <th style={styles.th}>Estado</th><th style={styles.th}>N° Equipo</th><th style={styles.th}>Nombre</th>
-            <th style={styles.th} className="fleet-col-type">Tipo</th><th style={styles.th} className="fleet-col-sector">Sector</th>
-            <th style={styles.th} className="fleet-col-horometro">Horómetro</th><th style={styles.th}>Próx. Service</th><th style={styles.th}>Detalle</th>
+            <th style={styles.th}>Estado</th>
+            <th style={styles.th}>ID</th>
+            <th style={styles.th}>Nombre</th>
+            <th style={styles.th} className="fleet-col-type">Tipo</th>
+            <th style={styles.th} className="fleet-col-horometro">Horómetro</th>
+            <th style={styles.th}>Próx. Service</th>
+            <th style={styles.th}>Detalle</th>
           </tr></thead>
-          <tbody>{equipment.map((eq) => {
-            const cfg = STATUS_CONFIG[eq.status];
-            const nextSvc = eq.nextService ? new Date(eq.nextService) : null;
-            const hoursUntil = nextSvc ? Math.round((nextSvc - new Date()) / 3600000) : null;
-            return (
-              <tr key={eq.id} style={styles.tr}>
-                <td style={styles.td}><span style={{ ...styles.statusBadge, background: cfg.bg, color: cfg.color, borderColor: cfg.color }}>{cfg.icon} {cfg.label}</span></td>
-                <td style={{ ...styles.td, ...styles.tdMono }}>{eq.id}</td>
-                <td style={styles.td}>{eq.name}</td>
-                <td style={styles.td} className="fleet-col-type"><span style={styles.typeBadge}>{eq.type}</span></td>
-                <td style={styles.td} className="fleet-col-sector">{eq.sector}</td>
-                <td style={{ ...styles.td, ...styles.tdMono }} className="fleet-col-horometro">{eq.horómetro ? eq.horómetro.toLocaleString() : "N/A"}</td>
-                <td style={styles.td}>{nextSvc ? (<div><div style={styles.dateText}>{nextSvc.toLocaleDateString("es-AR", { day: "2-digit", month: "short" })} — {nextSvc.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })}</div>{hoursUntil !== null && hoursUntil <= 24 && hoursUntil > 0 && (<span style={styles.urgentBadge}>⏱ En {hoursUntil}h</span>)}</div>) : <span style={{ color: "#6b7280" }}>—</span>}</td>
-                <td style={styles.td}><button style={styles.detailBtn} className="fleet-action-btn" onClick={() => onDetail(eq)}>Ver detalle</button></td>
-              </tr>);
-          })}</tbody>
+          <tbody>
+            {equipment.map((eq) => {
+              const cfg = STATUS_CONFIG[eq.status];
+              const nextSvc = eq.nextService ? new Date(eq.nextService) : null;
+              const hoursUntil = nextSvc ? Math.round((nextSvc - new Date()) / 3600000) : null;
+              return (
+                <tr key={eq.id} style={styles.tr}>
+                  <td style={styles.td}>
+                    <span style={{ ...styles.statusBadge, background: cfg.bg, color: cfg.color, borderColor: cfg.color }}>
+                      {cfg.icon} {cfg.label}
+                    </span>
+                  </td>
+                  <td style={{ ...styles.td, ...styles.tdMono }}>{eq.id}</td>
+                  <td style={styles.td}>{eq.name}</td>
+                  <td style={styles.td} className="fleet-col-type"><span style={styles.typeBadge}>{eq.type}</span></td>
+                  <td style={{ ...styles.td, ...styles.tdMono }} className="fleet-col-horometro">
+                    {eq.horómetro ? eq.horómetro.toLocaleString() : "N/A"}
+                  </td>
+                  <td style={styles.td}>
+                    {nextSvc ? (
+                      <div>
+                        <div style={styles.dateText}>
+                          {nextSvc.toLocaleDateString("es-AR", { day: "2-digit", month: "short" })} — {nextSvc.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })}
+                        </div>
+                        {hoursUntil !== null && hoursUntil <= 24 && hoursUntil > 0 && (
+                          <span style={styles.urgentBadge}>⏱ En {hoursUntil}h</span>
+                        )}
+                      </div>
+                    ) : <span style={{ color: "#6b7280" }}>—</span>}
+                  </td>
+                  <td style={styles.td}>
+                    <button style={styles.detailBtn} className="fleet-action-btn" onClick={() => onDetail(eq)}>
+                      Ver detalle
+                    </button>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
         </table>
       </div>
     </div>
@@ -554,18 +491,24 @@ function StatusFlota({ equipment, counts, onDetail, isMobile }) {
 }
 
 function CalendarView({ equipment, events, weekOffset, setWeekOffset, isMobile }) {
-  const now = new Date(); const baseDate = new Date(now); baseDate.setDate(baseDate.getDate() + weekOffset * 7);
-  const monday = new Date(baseDate); monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7));
-  const weekDates = Array.from({ length: 7 }, (_, i) => { const d = new Date(monday); d.setDate(d.getDate() + i); return d; });
+  const now = new Date();
+  const monday = new Date(now);
+  monday.setDate(now.getDate() - ((now.getDay() + 6) % 7) + weekOffset * 7);
+  const weekDates = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(monday); d.setDate(monday.getDate() + i); return d;
+  });
   const todayStr = now.toISOString().split("T")[0];
   const eqIds = new Set(equipment.map((e) => e.id));
   const filteredEvents = events.filter((ev) => eqIds.has(ev.equipmentId));
-  const hours = Array.from({ length: 12 }, (_, i) => i + 7);
+  const hours = Array.from({ length: 13 }, (_, i) => i + 7);
   const weekTitle = `Semana del ${monday.toLocaleDateString("es-AR", { day: "2-digit", month: "long" })} al ${weekDates[6].toLocaleDateString("es-AR", { day: "2-digit", month: "long", year: "numeric" })}`;
 
   const eventsByDay = useMemo(() => {
     const g = {};
-    weekDates.forEach((d) => { const ds = d.toISOString().split("T")[0]; g[ds] = filteredEvents.filter((ev) => ev.datetime.startsWith(ds)).sort((a, b) => a.datetime.localeCompare(b.datetime)); });
+    weekDates.forEach((d) => {
+      const ds = d.toISOString().split("T")[0];
+      g[ds] = filteredEvents.filter((ev) => ev.datetime.startsWith(ds)).sort((a, b) => a.datetime.localeCompare(b.datetime));
+    });
     return g;
   }, [filteredEvents, weekOffset]);
 
@@ -576,37 +519,74 @@ function CalendarView({ equipment, events, weekOffset, setWeekOffset, isMobile }
         <h3 style={styles.weekTitle}>{weekTitle}</h3>
         <button style={styles.weekBtn} onClick={() => setWeekOffset(weekOffset + 1)}>Siguiente →</button>
       </div>
+
       <div className="fleet-cal-grid-container">
         <div style={styles.calendarGrid}>
           <div style={styles.calTimeHeader}></div>
-          {weekDates.map((d, i) => { const isToday = d.toISOString().split("T")[0] === todayStr; return (<div key={i} style={{ ...styles.calDayHeader, ...(isToday ? styles.calDayToday : {}) }}><span style={styles.calDayName}>{DAYS[i]}</span><span style={styles.calDayNum}>{d.getDate()}</span></div>); })}
-          {hours.map((hour) => (<>
-            <div key={`t-${hour}`} style={styles.calTimeCell}>{`${hour}:00`}</div>
-            {weekDates.map((d, di) => { const ds = d.toISOString().split("T")[0]; const de = filteredEvents.filter((ev) => { const eh = parseInt(ev.datetime.split("T")[1]?.split(":")[0]); return ev.datetime.startsWith(ds) && eh === hour; }); return (
-              <div key={`${hour}-${di}`} style={styles.calCell}>{de.map((ev, ei) => (<div key={ei} style={{ ...styles.calEvent, borderLeftColor: ev.type === "extra" ? "#ef4444" : "#f59e0b", background: ev.type === "extra" ? "#450a0a" : "#422006" }}><span style={styles.calEventTime}>{ev.datetime.split("T")[1]?.slice(0, 5)}</span><span style={styles.calEventName}>{ev.equipmentId}</span><span style={styles.calEventSector}>{ev.sector}</span></div>))}</div>); })}
-          </>))}
+          {weekDates.map((d, i) => {
+            const isToday = d.toISOString().split("T")[0] === todayStr;
+            return (
+              <div key={i} style={{ ...styles.calDayHeader, ...(isToday ? styles.calDayToday : {}) }}>
+                <span style={styles.calDayName}>{DAYS[i]}</span>
+                <span style={styles.calDayNum}>{d.getDate()}</span>
+              </div>
+            );
+          })}
+          {hours.map((hour) => (
+            <>
+              <div key={`t-${hour}`} style={styles.calTimeCell}>{`${hour}:00`}</div>
+              {weekDates.map((d, di) => {
+                const ds = d.toISOString().split("T")[0];
+                const de = filteredEvents.filter((ev) => {
+                  const eh = parseInt(ev.datetime.split("T")[1]?.split(":")[0]);
+                  return ev.datetime.startsWith(ds) && eh === hour;
+                });
+                return (
+                  <div key={`${hour}-${di}`} style={styles.calCell}>
+                    {de.map((ev, ei) => (
+                      <div key={ei} style={{ ...styles.calEvent, borderLeftColor: "#f59e0b", background: "#422006" }}>
+                        <span style={styles.calEventTime}>{ev.datetime.split("T")[1]?.slice(0, 5)}</span>
+                        <span style={styles.calEventName}>{ev.equipmentId}</span>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })}
+            </>
+          ))}
         </div>
       </div>
+
       <div className="fleet-cal-list">
-        {weekDates.map((d) => { const ds = d.toISOString().split("T")[0]; const de = eventsByDay[ds] || []; const isToday = ds === todayStr; return (
-          <div key={ds} style={{ marginBottom: 12 }}>
-            <div style={{ padding: "8px 12px", background: isToday ? "#1e293b" : "#111827", borderRadius: 6, borderLeft: isToday ? "3px solid #f59e0b" : "3px solid #1f2937", marginBottom: 6, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <span style={{ fontWeight: 700, fontSize: 13, color: isToday ? "#f59e0b" : "#d1d5db" }}>{DAYS[weekDates.indexOf(d)]} {d.getDate()}</span>
-              {de.length > 0 && <span style={{ fontSize: 10, color: "#9ca3af", background: "#1f2937", padding: "2px 6px", borderRadius: 3 }}>{de.length} eventos</span>}
+        {weekDates.map((d) => {
+          const ds = d.toISOString().split("T")[0];
+          const de = eventsByDay[ds] || [];
+          const isToday = ds === todayStr;
+          return (
+            <div key={ds} style={{ marginBottom: 12 }}>
+              <div style={{ padding: "8px 12px", background: isToday ? "#1e293b" : "#111827", borderRadius: 6, borderLeft: isToday ? "3px solid #f59e0b" : "3px solid #1f2937", marginBottom: 6, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span style={{ fontWeight: 700, fontSize: 13, color: isToday ? "#f59e0b" : "#d1d5db" }}>
+                  {DAYS[weekDates.indexOf(d)]} {d.getDate()}
+                </span>
+                {de.length > 0 && <span style={{ fontSize: 10, color: "#9ca3af", background: "#1f2937", padding: "2px 6px", borderRadius: 3 }}>{de.length} servicios</span>}
+              </div>
+              {de.length === 0
+                ? <div style={{ fontSize: 11, color: "#374151", padding: "4px 12px" }}>Sin servicios programados</div>
+                : de.map((ev, i) => (
+                  <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", background: "#422006", borderRadius: 6, borderLeft: "3px solid #f59e0b", marginBottom: 4, fontSize: 12 }}>
+                    <span style={{ color: "#9ca3af", minWidth: 40 }}>{ev.datetime.split("T")[1]?.slice(0, 5)}</span>
+                    <span style={{ fontWeight: 700, color: "#f3f4f6" }}>{ev.equipmentId}</span>
+                    <span style={{ color: "#9ca3af" }}>{ev.equipmentName}</span>
+                  </div>
+                ))
+              }
             </div>
-            {de.length === 0 ? <div style={{ fontSize: 11, color: "#374151", padding: "4px 12px" }}>Sin servicios programados</div> : de.map((ev, i) => (
-              <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", background: ev.type === "extra" ? "#450a0a" : "#422006", borderRadius: 6, borderLeft: `3px solid ${ev.type === "extra" ? "#ef4444" : "#f59e0b"}`, marginBottom: 4, fontSize: 12 }}>
-                <span style={{ color: "#9ca3af", minWidth: 40 }}>{ev.datetime.split("T")[1]?.slice(0, 5)}</span>
-                <span style={{ fontWeight: 700, color: "#f3f4f6" }}>{ev.equipmentId}</span>
-                <span style={{ color: "#9ca3af" }}>{ev.equipmentName}</span>
-                <span style={{ marginLeft: "auto", color: "#6b7280", fontSize: 10 }}>{ev.sector}</span>
-              </div>))}
-          </div>); })}
+          );
+        })}
       </div>
+
       <div style={styles.calLegend}>
-        <div style={styles.legendItem}><span style={{ ...styles.legendDot, background: "#f59e0b" }} />Service semanal</div>
-        <div style={styles.legendItem}><span style={{ ...styles.legendDot, background: "#ef4444" }} />Service extra (falla)</div>
-        <div style={styles.legendItem}><span style={{ ...styles.legendDot, background: "#3b82f6" }} />🔔 Notif. automática 2h antes</div>
+        <div style={styles.legendItem}><span style={{ ...styles.legendDot, background: "#f59e0b" }} />Service semanal programado</div>
       </div>
     </div>
   );
@@ -614,135 +594,119 @@ function CalendarView({ equipment, events, weekOffset, setWeekOffset, isMobile }
 
 function RecordView({ equipment, records, isMobile }) {
   const [selectedEquip, setSelectedEquip] = useState(null);
-  const [tooltip, setTooltip] = useState(null); // { x, y, equipId, item, records }
+  const [tooltip, setTooltip] = useState(null);
 
   const eqIds = new Set(equipment.map((e) => e.id));
   const relevantRecords = records.filter((r) => eqIds.has(r.equipmentId));
-  const aggregated = useMemo(() => { const m = {}; relevantRecords.forEach((r) => { if (!m[r.equipmentId]) m[r.equipmentId] = {}; if (!m[r.equipmentId][r.item]) m[r.equipmentId][r.item] = 0; m[r.equipmentId][r.item]++; }); return m; }, [relevantRecords]);
-  const selectedRecords = selectedEquip ? relevantRecords.filter((r) => r.equipmentId === selectedEquip).sort((a, b) => b.date.localeCompare(a.date)) : [];
-  const displayItems = isMobile ? CHECK_ITEMS.slice(0, 7) : CHECK_ITEMS;
 
-  // Tooltip handlers — sigue al cursor, solo desktop
-  const handleCellMove = (e, equipId, item, count) => {
-    if (isMobile || count === 0) return;
-    const cellRecords = relevantRecords
-      .filter((r) => r.equipmentId === equipId && r.item === item)
-      .sort((a, b) => b.date.localeCompare(a.date))
-      .slice(0, 5);
-    setTooltip({
-      x: e.clientX,
-      y: e.clientY,
-      equipId, item, count,
-      records: cellRecords,
+  const aggregated = useMemo(() => {
+    const m = {};
+    relevantRecords.forEach((r) => {
+      if (!m[r.equipmentId]) m[r.equipmentId] = {};
+      if (!m[r.equipmentId][r.item]) m[r.equipmentId][r.item] = 0;
+      m[r.equipmentId][r.item]++;
     });
-  };
-  const handleCellLeave = () => setTooltip(null);
+    return m;
+  }, [relevantRecords]);
+
+  const selectedRecords = selectedEquip
+    ? relevantRecords.filter((r) => r.equipmentId === selectedEquip).sort((a, b) => b.date.localeCompare(a.date))
+    : [];
+
+  const displayItems = isMobile ? CHECK_ITEMS.slice(0, 7) : CHECK_ITEMS;
 
   return (
     <div>
       <p style={styles.sectionDesc}>
         Resumen de ítems reportados como <span style={{ color: "#ef4444", fontWeight: 700 }}>NO OK</span> en los últimos 14 días.
         {!isMobile && <span style={{ color: "#6b7280" }}> Pasá el mouse sobre una celda para ver el detalle.</span>}
-        {isMobile && <span style={{ color: "#6b7280" }}> (7 ítems)</span>}
       </p>
       <div style={styles.tableContainer} className="fleet-table-container fleet-heatmap-container">
         <table style={styles.table}>
           <thead><tr>
             <th style={{ ...styles.th, position: "sticky", left: 0, background: "#111827", zIndex: 2 }}>Equipo</th>
-            {displayItems.map((item, i) => (<th key={i} style={{ ...styles.th, fontSize: 10, writingMode: "vertical-rl", textAlign: "left", padding: "8px 4px", maxWidth: 32 }}>{item}</th>))}
+            {displayItems.map((item, i) => (
+              <th key={i} style={{ ...styles.th, fontSize: 10, writingMode: "vertical-rl", textAlign: "left", padding: "8px 4px", maxWidth: 32 }}>{item}</th>
+            ))}
             <th style={{ ...styles.th, background: "#1e1b4b" }}>TOTAL</th>
           </tr></thead>
-          <tbody>{equipment.map((eq) => {
-            const eqData = aggregated[eq.id] || {}; const total = Object.values(eqData).reduce((s, v) => s + v, 0);
-            if (total === 0) return null;
-            return (<tr key={eq.id} style={{ ...styles.tr, cursor: "pointer", background: selectedEquip === eq.id ? "#1e293b" : undefined }} onClick={() => setSelectedEquip(selectedEquip === eq.id ? null : eq.id)}>
-              <td style={{ ...styles.td, position: "sticky", left: 0, background: selectedEquip === eq.id ? "#1e293b" : "#111827", zIndex: 1, fontWeight: 600, whiteSpace: "nowrap" }}>{eq.id}</td>
-              {displayItems.map((item, i) => {
-                const c = eqData[item] || 0;
-                const int = c === 0 ? 0 : Math.min(c / 4, 1);
-                return (
-                  <td key={i}
-                    style={{ ...styles.td, textAlign: "center", background: c > 0 ? `rgba(239,68,68,${0.15 + int * 0.55})` : "transparent", color: c > 0 ? "#fca5a5" : "#374151", fontWeight: c > 0 ? 700 : 400, fontSize: 13, cursor: c > 0 ? "help" : "default", transition: "transform 0.1s", }}
-                    onMouseMove={(e) => handleCellMove(e, eq.id, item, c)}
-                    onMouseLeave={handleCellLeave}
-                  >
-                    {c || "·"}
+          <tbody>
+            {equipment.map((eq) => {
+              const eqData = aggregated[eq.id] || {};
+              const total = Object.values(eqData).reduce((s, v) => s + v, 0);
+              if (total === 0) return null;
+              return (
+                <tr key={eq.id}
+                  style={{ ...styles.tr, cursor: "pointer", background: selectedEquip === eq.id ? "#1e293b" : undefined }}
+                  onClick={() => setSelectedEquip(selectedEquip === eq.id ? null : eq.id)}>
+                  <td style={{ ...styles.td, position: "sticky", left: 0, background: selectedEquip === eq.id ? "#1e293b" : "#111827", zIndex: 1, fontWeight: 600, whiteSpace: "nowrap" }}>
+                    {eq.id}
                   </td>
-                );
-              })}
-              <td style={{ ...styles.td, textAlign: "center", fontWeight: 800, color: total > 5 ? "#ef4444" : total > 2 ? "#eab308" : "#9ca3af", background: "#1e1b4b", fontSize: 15 }}>{total}</td>
-            </tr>);
-          })}</tbody>
+                  {displayItems.map((item, i) => {
+                    const c = eqData[item] || 0;
+                    const int = c === 0 ? 0 : Math.min(c / 4, 1);
+                    return (
+                      <td key={i}
+                        style={{ ...styles.td, textAlign: "center", background: c > 0 ? `rgba(239,68,68,${0.15 + int * 0.55})` : "transparent", color: c > 0 ? "#fca5a5" : "#374151", fontWeight: c > 0 ? 700 : 400, fontSize: 13, cursor: c > 0 ? "help" : "default" }}
+                        onMouseMove={(e) => {
+                          if (isMobile || c === 0) return;
+                          const cr = relevantRecords.filter((r) => r.equipmentId === eq.id && r.item === item).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 5);
+                          setTooltip({ x: e.clientX, y: e.clientY, equipId: eq.id, item, count: c, records: cr });
+                        }}
+                        onMouseLeave={() => setTooltip(null)}>
+                        {c || "·"}
+                      </td>
+                    );
+                  })}
+                  <td style={{ ...styles.td, textAlign: "center", fontWeight: 800, color: total > 5 ? "#ef4444" : total > 2 ? "#eab308" : "#9ca3af", background: "#1e1b4b", fontSize: 15 }}>
+                    {total}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
         </table>
       </div>
 
-      {/* ─── Tooltip flotante del heatmap ─── */}
       {tooltip && (
-        <div style={{
-          position: "fixed",
-          left: Math.min(tooltip.x + 16, window.innerWidth - 310),
-          top: Math.max(tooltip.y - 20, 10),
-          width: 290,
-          background: "#1e293b",
-          border: "1px solid #475569",
-          borderRadius: 10,
-          padding: "12px 14px",
-          zIndex: 9999,
-          boxShadow: "0 12px 40px rgba(0,0,0,0.7), 0 0 0 1px rgba(71,85,105,0.3)",
-          pointerEvents: "none",
-          fontSize: 12,
-          fontFamily: "inherit",
-        }}>
-          {/* Header del tooltip */}
+        <div style={{ position: "fixed", left: Math.min(tooltip.x + 16, window.innerWidth - 310), top: Math.max(tooltip.y - 20, 10), width: 290, background: "#1e293b", border: "1px solid #475569", borderRadius: 10, padding: "12px 14px", zIndex: 9999, boxShadow: "0 12px 40px rgba(0,0,0,0.7)", pointerEvents: "none", fontSize: 12, fontFamily: "inherit" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8, paddingBottom: 8, borderBottom: "1px solid #334155" }}>
             <span style={{ fontWeight: 800, color: "#f59e0b", fontSize: 13 }}>{tooltip.equipId}</span>
-            <span style={{ background: "#450a0a", color: "#fca5a5", padding: "2px 8px", borderRadius: 4, fontWeight: 700, fontSize: 11 }}>
-              {tooltip.count}× NO OK
-            </span>
+            <span style={{ background: "#450a0a", color: "#fca5a5", padding: "2px 8px", borderRadius: 4, fontWeight: 700, fontSize: 11 }}>{tooltip.count}× NO OK</span>
           </div>
           <div style={{ color: "#94a3b8", fontSize: 11, marginBottom: 8, fontWeight: 600 }}>{tooltip.item}</div>
-
-          {/* Lista de reportes */}
-          {tooltip.records.length > 0 ? tooltip.records.map((r, i) => (
-            <div key={i} style={{
-              display: "flex", alignItems: "center", gap: 8,
-              padding: "5px 0",
-              borderTop: i > 0 ? "1px solid #1f293766" : "none",
-              fontSize: 11,
-            }}>
-              <span style={{ color: "#9ca3af", minWidth: 42, fontWeight: 600 }}>
-                {r.date ? new Date(r.date).toLocaleDateString("es-AR", { day: "2-digit", month: "short" }) : "—"}
-              </span>
-              <span style={{ color: "#6b7280", background: "#0f172a", padding: "1px 5px", borderRadius: 3, fontSize: 10, fontWeight: 600 }}>
-                {r.turno || "—"}
-              </span>
-              <span style={{ color: "#e2e8f0", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                {r.descripcion || "Sin descripción"}
-              </span>
-              <span style={{ color: "#64748b", fontSize: 10, whiteSpace: "nowrap" }}>{r.operario || ""}</span>
+          {tooltip.records.map((r, i) => (
+            <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "5px 0", borderTop: i > 0 ? "1px solid #1f293766" : "none", fontSize: 11 }}>
+              <span style={{ color: "#9ca3af", minWidth: 42, fontWeight: 600 }}>{r.date ? new Date(r.date).toLocaleDateString("es-AR", { day: "2-digit", month: "short" }) : "—"}</span>
+              <span style={{ color: "#6b7280", background: "#0f172a", padding: "1px 5px", borderRadius: 3, fontSize: 10, fontWeight: 600 }}>{r.turno || "—"}</span>
+              <span style={{ color: "#e2e8f0", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.descripcion || "Sin descripción"}</span>
+              <span style={{ color: "#64748b", fontSize: 10 }}>{r.operario || ""}</span>
             </div>
-          )) : (
-            <div style={{ color: "#6b7280", fontSize: 11, fontStyle: "italic" }}>Datos mock — sin observaciones detalladas</div>
-          )}
-          {tooltip.count > 5 && (
-            <div style={{ color: "#64748b", fontSize: 10, marginTop: 6, textAlign: "center", borderTop: "1px solid #334155", paddingTop: 6 }}>
-              +{tooltip.count - 5} reportes más — clic en la fila para ver todos
-            </div>
-          )}
+          ))}
         </div>
       )}
 
       {selectedEquip && selectedRecords.length > 0 && (
         <div style={styles.recordDetail}>
-          <h4 style={styles.recordDetailTitle}>Detalle — <span style={{ color: "#f59e0b" }}>{selectedEquip}</span><span style={styles.recordCount}>{selectedRecords.length} reportes</span></h4>
-          <div style={styles.recordList}>{selectedRecords.map((r, i) => (
-            <div key={i} style={styles.recordItem}>
-              <div style={styles.recordDate}>{new Date(r.date).toLocaleDateString("es-AR", { day: "2-digit", month: "short" })}</div>
-              <span style={styles.recordTurno}>{r.turno}</span><span style={styles.recordItemName}>{r.item}</span>
-              {!isMobile && <span style={styles.recordDesc}>{r.descripcion}</span>}<span style={styles.recordOp}>{r.operario}</span>
-            </div>))}</div>
-        </div>)}
-    </div>);
+          <h4 style={styles.recordDetailTitle}>
+            Detalle — <span style={{ color: "#f59e0b" }}>{selectedEquip}</span>
+            <span style={styles.recordCount}>{selectedRecords.length} reportes</span>
+          </h4>
+          <div style={styles.recordList}>
+            {selectedRecords.map((r, i) => (
+              <div key={i} style={styles.recordItem}>
+                <div style={styles.recordDate}>{new Date(r.date).toLocaleDateString("es-AR", { day: "2-digit", month: "short" })}</div>
+                <span style={styles.recordTurno}>{r.turno}</span>
+                <span style={styles.recordItemName}>{r.item}</span>
+                {!isMobile && <span style={styles.recordDesc}>{r.descripcion}</span>}
+                <span style={styles.recordOp}>{r.operario}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 function DetailModal({ equipment, records, onClose }) {
@@ -751,28 +715,46 @@ function DetailModal({ equipment, records, onClose }) {
     <div style={styles.modalOverlay} onClick={onClose}>
       <div style={styles.modal} className="fleet-modal" onClick={(e) => e.stopPropagation()}>
         <div style={styles.modalHeader}>
-          <div><h3 style={styles.modalTitle}>{equipment.name}</h3><span style={{ ...styles.statusBadge, background: cfg.bg, color: cfg.color, borderColor: cfg.color, fontSize: 13 }}>{cfg.icon} {cfg.label}</span></div>
+          <div>
+            <h3 style={styles.modalTitle}>{equipment.name}</h3>
+            <span style={{ ...styles.statusBadge, background: cfg.bg, color: cfg.color, borderColor: cfg.color, fontSize: 13 }}>
+              {cfg.icon} {cfg.label}
+            </span>
+          </div>
           <button style={styles.modalClose} onClick={onClose}>✕</button>
         </div>
         <div style={styles.modalBody}>
           <div style={styles.modalGrid} className="fleet-modal-grid">
             <div style={styles.modalField}><span style={styles.modalFieldLabel}>ID</span><span>{equipment.id}</span></div>
             <div style={styles.modalField}><span style={styles.modalFieldLabel}>Tipo</span><span>{equipment.type}</span></div>
-            <div style={styles.modalField}><span style={styles.modalFieldLabel}>Sector</span><span>{equipment.sector}</span></div>
             <div style={styles.modalField}><span style={styles.modalFieldLabel}>Horómetro</span><span>{equipment.horómetro?.toLocaleString() || "N/A"}</span></div>
-            <div style={styles.modalField}><span style={styles.modalFieldLabel}>Próx. Service</span><span>{equipment.nextService ? new Date(equipment.nextService).toLocaleString("es-AR") : "Sin programar"}</span></div>
-            <div style={styles.modalField}><span style={styles.modalFieldLabel}>Reportes NO OK (14d)</span><span style={{ color: records.length > 0 ? "#ef4444" : "#16a34a", fontWeight: 700 }}>{records.length}</span></div>
+            <div style={styles.modalField}>
+              <span style={styles.modalFieldLabel}>Próx. Service</span>
+              <span>{equipment.nextService ? new Date(equipment.nextService).toLocaleString("es-AR") : "Sin programar"}</span>
+            </div>
+            <div style={styles.modalField}>
+              <span style={styles.modalFieldLabel}>Reportes NO OK (14d)</span>
+              <span style={{ color: records.length > 0 ? "#ef4444" : "#16a34a", fontWeight: 700 }}>{records.length}</span>
+            </div>
           </div>
-          {records.length > 0 && (<div style={{ marginTop: 16 }}>
-            <h4 style={{ color: "#d1d5db", marginBottom: 8, fontSize: 13, textTransform: "uppercase", letterSpacing: 1 }}>Últimos reportes NO OK</h4>
-            {records.slice(0, 6).map((r, i) => (<div key={i} style={styles.modalRecord}><span style={{ color: "#9ca3af", minWidth: 55 }}>{new Date(r.date).toLocaleDateString("es-AR", { day: "2-digit", month: "short" })}</span><span style={{ color: "#fca5a5", fontWeight: 600, flex: 1 }}>{r.item}</span><span style={{ color: "#6b7280", fontSize: 12 }}>{r.operario}</span></div>))}
-          </div>)}
+          {records.length > 0 && (
+            <div style={{ marginTop: 16 }}>
+              <h4 style={{ color: "#d1d5db", marginBottom: 8, fontSize: 13, textTransform: "uppercase", letterSpacing: 1 }}>Últimos reportes NO OK</h4>
+              {records.slice(0, 6).map((r, i) => (
+                <div key={i} style={styles.modalRecord}>
+                  <span style={{ color: "#9ca3af", minWidth: 55 }}>{new Date(r.date).toLocaleDateString("es-AR", { day: "2-digit", month: "short" })}</span>
+                  <span style={{ color: "#fca5a5", fontWeight: 600, flex: 1 }}>{r.item}</span>
+                  <span style={{ color: "#6b7280", fontSize: 12 }}>{r.operario}</span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
-    </div>);
+    </div>
+  );
 }
 
-// ─── Styles ───────────────────────────────────────────────────
 const styles = {
   root: { fontFamily: "'JetBrains Mono', 'SF Mono', 'Fira Code', monospace", background: "#0a0f1a", color: "#e5e7eb", minHeight: "100vh" },
   header: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px 24px", background: "linear-gradient(180deg, #111827 0%, #0a0f1a 100%)", borderBottom: "1px solid #1f2937" },
@@ -825,7 +807,6 @@ const styles = {
   calEvent: { padding: "4px 6px", borderRadius: 4, borderLeft: "3px solid", marginBottom: 3, fontSize: 10, lineHeight: 1.3 },
   calEventTime: { display: "block", color: "#9ca3af", fontWeight: 600 },
   calEventName: { display: "block", color: "#f3f4f6", fontWeight: 700, fontSize: 11 },
-  calEventSector: { display: "block", color: "#6b7280", fontSize: 9 },
   calLegend: { display: "flex", gap: 24, marginTop: 16, padding: "12px 16px", background: "#111827", borderRadius: 8, flexWrap: "wrap" },
   legendItem: { display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: "#9ca3af" },
   legendDot: { width: 10, height: 10, borderRadius: "50%", flexShrink: 0 },
