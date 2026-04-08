@@ -138,6 +138,16 @@ function transformServicesTemplate(servicesData, equipoMap, weekOffset = 0, exce
       type: "semanal",
     });
   });
+
+  console.log("excMap keys:", Object.keys(excMap));
+console.log("svc keys sample:", servicesData.slice(0,3).map(s => {
+  const dayOffset = DAY_INDEX[s.dia?.toUpperCase().trim()];
+  const date = new Date(monday);
+  date.setDate(monday.getDate() + (dayOffset ?? 0));
+  const dateStr = date.toISOString().split("T")[0];
+  return `${normalizeEquipo(s.equipo)}|${dateStr}`;
+}));
+  
   return events;
 }
 
