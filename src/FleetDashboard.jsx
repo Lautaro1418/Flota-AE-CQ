@@ -95,6 +95,7 @@ function transformChecksToNoOk(checksData, equipoMap) {
 }
 
 // ── services_template → eventos calendario (con excepciones) ──
+// Excepciones pueden mover un turno a cualquier día/hora de la semana
 function transformServicesTemplate(servicesData, equipoMap, weekOffset = 0, excepciones = []) {
   const events = [];
   if (!servicesData?.length) return events;
@@ -103,19 +104,46 @@ function transformServicesTemplate(servicesData, equipoMap, weekOffset = 0, exce
   monday.setDate(now.getDate() - ((now.getDay() + 6) % 7) + weekOffset * 7);
   monday.setHours(0, 0, 0, 0);
 
-  // Mapa excepciones: "EQUIPONOMBRE|fecha" → excepcion
-  // Normalizar fecha y nombre de equipo para evitar mismatch de caracteres unicode
-  const normalizeEquipo = (s) => (s || "").trim().toUpperCase()
-    .replace(/N[°º]/g, "N°")   // normalizar Nº y N° al mismo símbolo
-    .replace(/\s+/g, " ");     // colapsar espacios múltiples
+  const weekEndDate = new Date(monday);
+  weekEndDate.setDate(monday.getDate() + 6);
+  const weekStart = monday.toISOString().split("T")[0];
+  const weekEnd = weekEndDate.toISOString().split("T")[0];
 
-  const excMap = {};
+  // Equipos cuyo turno original del template fue reemplazado esta semana
+  // clave: "EQUIPONOMBRE|fechaOriginalEnTemplate"
+  const reemplazados = new Set();
+
+  // 1. Procesar excepciones que caen en esta semana
   excepciones.forEach((exc) => {
-    const fechaNorm = (exc.fecha || "").toString().slice(0, 10);
-    const key = `${normalizeEquipo(exc.equipo)}|${fechaNorm}`;
-    excMap[key] = exc;
+    const fechaExc = (exc.fecha || "").toString().slice(0, 10);
+    const equipKey = (exc.equipo || "").trim().toUpperCase();
+    const equipId = equipoMap[equipKey];
+    if (!equipId) return;
+
+    // Agregar evento nuevo en la fecha de la excepción (si tiene horario)
+    if (fechaExc >= weekStart && fechaExc <= weekEnd && exc.inicio) {
+      events.push({
+        equipmentId: equipId,
+        equipmentName: exc.equipo,
+        sector: "—",
+        datetime: `${fechaExc}T${exc.inicio}`,
+        type: "excepcion",
+        motivo: exc.motivo || null,
+      });
+    }
+
+    // Marcar el día original del template para este equipo como reemplazado
+    servicesData.forEach((svc) => {
+      if ((svc.equipo || "").trim().toUpperCase() !== equipKey) return;
+      const dayOffset = DAY_INDEX[svc.dia?.toUpperCase().trim()];
+      if (dayOffset === undefined) return;
+      const dateOrig = new Date(monday);
+      dateOrig.setDate(monday.getDate() + dayOffset);
+      reemplazados.add(`${equipKey}|${dateOrig.toISOString().split("T")[0]}`);
+    });
   });
 
+  // 2. Agregar turnos del template que NO fueron reemplazados
   servicesData.forEach((svc) => {
     const dayOffset = DAY_INDEX[svc.dia?.toUpperCase().trim()];
     if (dayOffset === undefined) return;
@@ -124,22 +152,9 @@ function transformServicesTemplate(servicesData, equipoMap, weekOffset = 0, exce
     const date = new Date(monday);
     date.setDate(monday.getDate() + dayOffset);
     const dateStr = date.toISOString().split("T")[0];
+    const equipKey = (svc.equipo || "").trim().toUpperCase();
 
-    const excKey = `${normalizeEquipo(svc.equipo)}|${dateStr}`;
-    const exc = excMap[excKey];
-
-    if (exc) {
-      if (!exc.inicio) return; // cancelado
-      events.push({
-        equipmentId: equipId,
-        equipmentName: svc.equipo,
-        sector: "—",
-        datetime: `${dateStr}T${exc.inicio}`,
-        type: "excepcion",
-        motivo: exc.motivo || null,
-      });
-      return;
-    }
+    if (reemplazados.has(`${equipKey}|${dateStr}`)) return;
 
     events.push({
       equipmentId: equipId,
@@ -149,9 +164,9 @@ function transformServicesTemplate(servicesData, equipoMap, weekOffset = 0, exce
       type: "semanal",
     });
   });
+
   return events;
 }
-
 // ── fuera_de_servicio → formato interno ───────────────────────
 function transformFds(fdsData) {
   if (!fdsData?.length) return [];
@@ -278,9 +293,7 @@ export default function FleetDashboard({ onBack }) {
         setExcepcionesRaw(excData || []);
         setFdsRecords(fds.length ? fds : FDS_MOCK);
         setDataSource(flotaT.length ? "supabase" : "mock");
-        console.log(`📊 flota:${flotaT.length} checks:${noOk.length} svc:${svcData?.length} fds:${fds.length} exc:${excData?.length}`);
-console.log("exc[0]:", JSON.stringify(excData?.[0]));
-console.log("svc[0]:", JSON.stringify(svcData?.[0]));
+        console.log(`📊 flota:${flotaT.length} checks:${noOk.length} svc:${svcData?.length} fds:${fds.length}`);
       } catch (err) {
         console.error("Error:", err.message);
         setFlota(FLOTA_MOCK); setNoOkRecords([]); setServicesRaw([]); setExcepcionesRaw([]);
