@@ -379,8 +379,9 @@ function CalendarTab() {
 
   const addExcepcion = async () => {
     if (!newExc.fecha || !newExc.equipo) return;
+    // Usar la fecha exacta del input (string YYYY-MM-DD) sin conversión timezone
     const { data, error } = await supabase.from("services_excepciones").insert([{
-      fecha: newExc.fecha,
+      fecha: newExc.fecha, // string YYYY-MM-DD directo del input
       equipo: newExc.equipo,
       inicio: newExc.inicio || null,
       fin: newExc.fin || null,
