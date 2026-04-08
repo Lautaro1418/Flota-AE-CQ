@@ -58,8 +58,13 @@ function buildEquipoMap(flotaData) {
   const map = {};
   if (!flotaData?.length) return map;
   flotaData.forEach((row) => {
-    if (row.equipo && row.id_corto)
+    if (row.equipo && row.id_corto) {
+      // Guardar con clave normalizada Y clave original para máximo match
+      const normalized = row.equipo.trim().toUpperCase()
+        .replace(/N[°º]/g, "N°").replace(/\s+/g, " ");
+      map[normalized] = row.id_corto;
       map[row.equipo.trim().toUpperCase()] = row.id_corto;
+    }
   });
   return map;
 }
@@ -69,7 +74,9 @@ function transformChecksToNoOk(checksData, equipoMap) {
   const records = [];
   if (!checksData?.length) return records;
   checksData.forEach((check) => {
-    const equipId = equipoMap[(check.equipo || "").trim().toUpperCase()];
+    const rawKey = (check.equipo || "").trim().toUpperCase();
+    const normKey = rawKey.replace(/N[°º]/g, "N°").replace(/\s+/g, " ");
+    const equipId = equipoMap[normKey] || equipoMap[rawKey];
     if (!equipId) return;
     CHECK_FIELD_MAP.forEach(({ field, obs, label }) => {
       if ((check[field] || "").toUpperCase().trim() === "NO OK") {
@@ -97,11 +104,15 @@ function transformServicesTemplate(servicesData, equipoMap, weekOffset = 0, exce
   monday.setHours(0, 0, 0, 0);
 
   // Mapa excepciones: "EQUIPONOMBRE|fecha" → excepcion
-  // Normalizar fecha: Supabase puede devolver "2026-04-08" o "2026-04-08T00:00:00"
+  // Normalizar fecha y nombre de equipo para evitar mismatch de caracteres unicode
+  const normalizeEquipo = (s) => (s || "").trim().toUpperCase()
+    .replace(/N[°º]/g, "N°")   // normalizar Nº y N° al mismo símbolo
+    .replace(/\s+/g, " ");     // colapsar espacios múltiples
+
   const excMap = {};
   excepciones.forEach((exc) => {
-    const fechaNorm = (exc.fecha || "").toString().slice(0, 10); // siempre YYYY-MM-DD
-    const key = `${(exc.equipo || "").trim().toUpperCase()}|${fechaNorm}`;
+    const fechaNorm = (exc.fecha || "").toString().slice(0, 10);
+    const key = `${normalizeEquipo(exc.equipo)}|${fechaNorm}`;
     excMap[key] = exc;
   });
 
@@ -114,7 +125,7 @@ function transformServicesTemplate(servicesData, equipoMap, weekOffset = 0, exce
     date.setDate(monday.getDate() + dayOffset);
     const dateStr = date.toISOString().split("T")[0];
 
-    const excKey = `${(svc.equipo || "").trim().toUpperCase()}|${dateStr}`;
+    const excKey = `${normalizeEquipo(svc.equipo)}|${dateStr}`;
     const exc = excMap[excKey];
 
     if (exc) {
@@ -138,16 +149,6 @@ function transformServicesTemplate(servicesData, equipoMap, weekOffset = 0, exce
       type: "semanal",
     });
   });
-
-  console.log("excMap keys:", Object.keys(excMap));
-console.log("svc keys sample:", servicesData.slice(0,3).map(s => {
-  const dayOffset = DAY_INDEX[s.dia?.toUpperCase().trim()];
-  const date = new Date(monday);
-  date.setDate(monday.getDate() + (dayOffset ?? 0));
-  const dateStr = date.toISOString().split("T")[0];
-  return `${normalizeEquipo(s.equipo)}|${dateStr}`;
-}));
-  
   return events;
 }
 
