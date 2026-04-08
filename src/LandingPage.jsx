@@ -55,9 +55,6 @@ export default function LandingPage({ onEnterDashboard, onEnterForms, onEnterAdm
             </div>
             <div style={s.cardContent}>
               <div style={s.cardTitle}>Tablero de Control</div>
-              <div style={s.cardDesc}>
-                Visualizá el estado de toda la flota, servicios programados, registros NO OK y equipos fuera de servicio.
-              </div>
             </div>
             <div style={{ ...s.cardArrow, opacity: hoveredCard === "dashboard" ? 1 : 0.3 }}>
               →
@@ -83,9 +80,6 @@ export default function LandingPage({ onEnterDashboard, onEnterForms, onEnterAdm
             </div>
             <div style={s.cardContent}>
               <div style={{ ...s.cardTitle, color: "#93c5fd" }}>Formularios</div>
-              <div style={s.cardDesc}>
-                Completá el check diario de la máquina. Abre el formulario de Tally directamente desde acá.
-              </div>
             </div>
             <div style={{ ...s.cardArrow, color: "#3b82f6", opacity: hoveredCard === "forms" ? 1 : 0.3 }}>
               →
@@ -112,9 +106,6 @@ export default function LandingPage({ onEnterDashboard, onEnterForms, onEnterAdm
             </div>
             <div style={s.cardContent}>
               <div style={{ ...s.cardTitle, color: "#c4b5fd" }}>Administración</div>
-              <div style={s.cardDesc}>
-                Gestioná la flota, el personal y el calendario de servicios. Requiere contraseña.
-              </div>
             </div>
             <div style={{ ...s.cardArrow, color: "#8b5cf6", opacity: hoveredCard === "admin" ? 1 : 0.3 }}>
               →
