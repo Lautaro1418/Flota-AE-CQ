@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect, useCallback } from "react";
 import './App.css';
 import FueraDeServicio from './FueraDeServicio.jsx';
 import { supabase } from './supabaseClient.js';
+import RecepcionModal from './RecepcionModal.jsx';
 
 function useIsMobile() {
   const [isMobile, setIsMobile] = useState(
@@ -250,6 +251,7 @@ export default function FleetDashboard({ onBack }) {
   const [equipFilter, setEquipFilter] = useState("");
   const [statusDetailModal, setStatusDetailModal] = useState(null);
   const [calendarWeekOffset, setCalendarWeekOffset] = useState(0);
+  const [recepcionModal, setRecepcionModal] = useState(null); // { equipmentId, equipmentName, fecha }
 
   const [flota, setFlota] = useState([]);
   const [equipoMap, setEquipoMap] = useState({});
@@ -512,7 +514,8 @@ export default function FleetDashboard({ onBack }) {
         )}
         {activeTab === "calendar" && (
           <CalendarView equipment={filteredEquipment} events={serviceEvents}
-            weekOffset={calendarWeekOffset} setWeekOffset={setCalendarWeekOffset} isMobile={isMobile} />
+            weekOffset={calendarWeekOffset} setWeekOffset={setCalendarWeekOffset}
+            isMobile={isMobile} onEventClick={setRecepcionModal} />
         )}
         {activeTab === "records" && (
           <RecordView equipment={filteredEquipment} records={noOkRecords} isMobile={isMobile} />
@@ -527,6 +530,15 @@ export default function FleetDashboard({ onBack }) {
         <DetailModal equipment={statusDetailModal}
           records={noOkRecords.filter((r) => r.equipmentId === statusDetailModal.id)}
           onClose={() => setStatusDetailModal(null)} />
+      )}
+
+      {recepcionModal && (
+        <RecepcionModal
+          equipo={recepcionModal}
+          fecha={recepcionModal.fecha}
+          onClose={() => setRecepcionModal(null)}
+          onSuccess={() => setRecepcionModal(null)}
+        />
       )}
     </div>
   );
@@ -613,7 +625,7 @@ function StatusFlota({ equipment, counts, onDetail, isMobile }) {
   );
 }
 
-function CalendarView({ equipment, events, weekOffset, setWeekOffset, isMobile }) {
+function CalendarView({ equipment, events, weekOffset, setWeekOffset, isMobile, onEventClick }) {
   const now = new Date();
   const monday = new Date(now);
   monday.setDate(now.getDate() - ((now.getDay() + 6) % 7) + weekOffset * 7);
@@ -667,9 +679,12 @@ function CalendarView({ equipment, events, weekOffset, setWeekOffset, isMobile }
                 return (
                   <div key={`${hour}-${di}`} style={styles.calCell}>
                     {de.map((ev, ei) => (
-                      <div key={ei} style={{ ...styles.calEvent, borderLeftColor: ev.type === "excepcion" ? "#8b5cf6" : "#f59e0b", background: ev.type === "excepcion" ? "#2e1065" : "#422006" }}>
+                      <div key={ei}
+                        onClick={() => onEventClick?.({ equipmentId: ev.equipmentId, equipmentName: ev.equipmentName, fecha: ev.datetime.split("T")[0] })}
+                        style={{ ...styles.calEvent, borderLeftColor: ev.type === "excepcion" ? "#8b5cf6" : "#f59e0b", background: ev.type === "excepcion" ? "#2e1065" : "#422006", cursor: "pointer" }}>
                         <span style={styles.calEventTime}>{ev.datetime.split("T")[1]?.slice(0, 5)}</span>
                         <span style={styles.calEventName}>{ev.equipmentId}</span>
+                        <span style={{ display: "block", fontSize: 9, color: "#6b7280", marginTop: 1 }}>Toc. para recepción</span>
                       </div>
                     ))}
                   </div>
@@ -696,10 +711,13 @@ function CalendarView({ equipment, events, weekOffset, setWeekOffset, isMobile }
               {de.length === 0
                 ? <div style={{ fontSize: 11, color: "#374151", padding: "4px 12px" }}>Sin servicios programados</div>
                 : de.map((ev, i) => (
-                  <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", background: ev.type === "excepcion" ? "#2e1065" : "#422006", borderRadius: 6, borderLeft: `3px solid ${ev.type === "excepcion" ? "#8b5cf6" : "#f59e0b"}`, marginBottom: 4, fontSize: 12 }}>
+                  <div key={i}
+                    onClick={() => onEventClick?.({ equipmentId: ev.equipmentId, equipmentName: ev.equipmentName, fecha: ev.datetime.split("T")[0] })}
+                    style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", background: ev.type === "excepcion" ? "#2e1065" : "#422006", borderRadius: 6, borderLeft: `3px solid ${ev.type === "excepcion" ? "#8b5cf6" : "#f59e0b"}`, marginBottom: 4, fontSize: 12, cursor: "pointer" }}>
                     <span style={{ color: "#9ca3af", minWidth: 40 }}>{ev.datetime.split("T")[1]?.slice(0, 5)}</span>
                     <span style={{ fontWeight: 700, color: "#f3f4f6" }}>{ev.equipmentId}</span>
-                    <span style={{ color: "#9ca3af" }}>{ev.equipmentName}</span>
+                    <span style={{ color: "#9ca3af", flex: 1 }}>{ev.equipmentName}</span>
+                    <span style={{ color: "#6b7280", fontSize: 10 }}>→ Recepción</span>
                   </div>
                 ))
               }
