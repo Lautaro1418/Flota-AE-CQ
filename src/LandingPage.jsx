@@ -3,7 +3,7 @@ import { useState } from "react";
 // URL del formulario de Tally
 const TALLY_URL = "https://tally.so/r/2EvQvA";
 
-export default function LandingPage({ onEnterDashboard }) {
+export default function LandingPage({ onEnterDashboard, onEnterForms }) {
   const [hoveredCard, setHoveredCard] = useState(null);
 
   return (
@@ -29,7 +29,8 @@ export default function LandingPage({ onEnterDashboard }) {
       {/* Contenido central */}
       <main style={s.main}>
         <div style={s.intro}>
-          <div style={s.introLabel}>PÁGINA DE INICIO</div>
+          <div style={s.introLabel}>PANEL DE ACCESO</div>
+          <h1 style={s.introTitle}>¿Qué querés hacer?</h1>
         </div>
 
         <div style={s.cards}>
@@ -72,7 +73,7 @@ export default function LandingPage({ onEnterDashboard }) {
             }}
             onMouseEnter={() => setHoveredCard("forms")}
             onMouseLeave={() => setHoveredCard(null)}
-            onClick={() => window.open(TALLY_URL, "_blank")}
+            onClick={onEnterForms}
           >
             <div style={{ ...s.cardIcon, background: hoveredCard === "forms" ? "#3b82f622" : "#1f2937" }}>
               <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="1.5">
