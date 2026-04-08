@@ -278,7 +278,9 @@ export default function FleetDashboard({ onBack }) {
         setExcepcionesRaw(excData || []);
         setFdsRecords(fds.length ? fds : FDS_MOCK);
         setDataSource(flotaT.length ? "supabase" : "mock");
-        console.log(`📊 flota:${flotaT.length} checks:${noOk.length} svc:${svcData?.length} fds:${fds.length}`);
+        console.log(`📊 flota:${flotaT.length} checks:${noOk.length} svc:${svcData?.length} fds:${fds.length} exc:${excData?.length}`);
+console.log("exc[0]:", JSON.stringify(excData?.[0]));
+console.log("svc[0]:", JSON.stringify(svcData?.[0]));
       } catch (err) {
         console.error("Error:", err.message);
         setFlota(FLOTA_MOCK); setNoOkRecords([]); setServicesRaw([]); setExcepcionesRaw([]);
