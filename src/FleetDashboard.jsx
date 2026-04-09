@@ -133,14 +133,17 @@ function transformServicesTemplate(servicesData, equipoMap, weekOffset = 0, exce
     }
 
     // Marcar el día original del template para este equipo como reemplazado
-    servicesData.forEach((svc) => {
-      if ((svc.equipo || "").trim().toUpperCase() !== equipKey) return;
-      const dayOffset = DAY_INDEX[svc.dia?.toUpperCase().trim()];
-      if (dayOffset === undefined) return;
-      const dateOrig = new Date(monday);
-      dateOrig.setDate(monday.getDate() + dayOffset);
-      reemplazados.add(`${equipKey}|${dateOrig.toISOString().split("T")[0]}`);
-    });
+    // Solo suprimir turno original si la excepción cae en ESTA semana
+    if (fechaExc >= weekStart && fechaExc <= weekEnd) {
+      servicesData.forEach((svc) => {
+        if ((svc.equipo || "").trim().toUpperCase() !== equipKey) return;
+        const dayOffset = DAY_INDEX[svc.dia?.toUpperCase().trim()];
+        if (dayOffset === undefined) return;
+        const dateOrig = new Date(monday);
+        dateOrig.setDate(monday.getDate() + dayOffset);
+        reemplazados.add(`${equipKey}|${toLocalDate(dateOrig)}`);
+      });
+    }
   });
 
   // 2. Agregar turnos del template que NO fueron reemplazados
@@ -619,7 +622,7 @@ function CalendarView({ equipment, events, weekOffset, setWeekOffset, isMobile, 
   const todayStr = toLocalDate(now);
   const eqIds = new Set(equipment.map((e) => e.id));
   const filteredEvents = events.filter((ev) => eqIds.has(ev.equipmentId));
-  const hours = Array.from({ length: 17 }, (_, i) => i + 7);
+  const hours = Array.from({ length: 17 }, (_, i) => i + 7); // 07:00 a 23:00
   const weekTitle = `Semana del ${monday.toLocaleDateString("es-AR", { day: "2-digit", month: "long" })} al ${weekDates[6].toLocaleDateString("es-AR", { day: "2-digit", month: "long", year: "numeric" })}`;
 
   const eventsByDay = useMemo(() => {
