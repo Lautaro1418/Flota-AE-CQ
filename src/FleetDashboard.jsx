@@ -15,6 +15,14 @@ function useIsMobile() {
   return isMobile;
 }
 
+// ── Helper fecha local — evita bug UTC-3 ─────────────────────
+function toLocalDate(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
 const CHECK_ITEMS = [
   "Extintor/Patente/Asiento", "Cinturón de seguridad", "Espejos laterales/retrovisor",
   "Bocina/Alarma retroceso", "Luces/Guiñes/Balizas", "Garrafa GLP",
@@ -607,12 +615,6 @@ function StatusFlota({ equipment, counts, onDetail, isMobile }) {
 }
 
 function CalendarView({ equipment, events, weekOffset, setWeekOffset, isMobile, onEventClick }) {
-  const toLocalDate = (d) => {
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, "0");
-    const day = String(d.getDate()).padStart(2, "0");
-    return `${y}-${m}-${day}`;
-  };
   const now = new Date();
   const monday = new Date(now);
   monday.setDate(now.getDate() - ((now.getDay() + 6) % 7) + weekOffset * 7);
