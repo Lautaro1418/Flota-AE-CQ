@@ -2,7 +2,6 @@ import { useState, useMemo, useEffect, useCallback } from "react";
 import './App.css';
 import FueraDeServicio from './FueraDeServicio.jsx';
 import { supabase } from './supabaseClient.js';
-import RecepcionModal from './RecepcionModal.jsx';
 
 function useIsMobile() {
   const [isMobile, setIsMobile] = useState(
@@ -14,6 +13,14 @@ function useIsMobile() {
     return () => window.removeEventListener("resize", handler);
   }, []);
   return isMobile;
+}
+
+// ── Helper fecha local — evita bug UTC-3 ─────────────────────
+function toLocalDate(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
 }
 
 const CHECK_ITEMS = [
@@ -107,8 +114,8 @@ function transformServicesTemplate(servicesData, equipoMap, weekOffset = 0, exce
 
   const weekEndDate = new Date(monday);
   weekEndDate.setDate(monday.getDate() + 6);
-  const weekStart = toLocalDate(monday);
-  const weekEnd = toLocalDate(weekEndDate);
+  const weekStart = monday.toISOString().split("T")[0];
+  const weekEnd = weekEndDate.toISOString().split("T")[0];
 
   // Equipos cuyo turno original del template fue reemplazado esta semana
   // clave: "EQUIPONOMBRE|fechaOriginalEnTemplate"
@@ -133,7 +140,8 @@ function transformServicesTemplate(servicesData, equipoMap, weekOffset = 0, exce
       });
     }
 
-    // Solo suprimir el turno original si la excepción cae en ESTA semana
+    // Marcar el día original del template para este equipo como reemplazado
+    // Solo suprimir turno original si la excepción cae en ESTA semana
     if (fechaExc >= weekStart && fechaExc <= weekEnd) {
       servicesData.forEach((svc) => {
         if ((svc.equipo || "").trim().toUpperCase() !== equipKey) return;
@@ -154,7 +162,7 @@ function transformServicesTemplate(servicesData, equipoMap, weekOffset = 0, exce
     if (!equipId) return;
     const date = new Date(monday);
     date.setDate(monday.getDate() + dayOffset);
-    const dateStr = toLocalDate(date);
+    const dateStr = date.toISOString().split("T")[0];
     const equipKey = (svc.equipo || "").trim().toUpperCase();
 
     if (reemplazados.has(`${equipKey}|${dateStr}`)) return;
@@ -243,7 +251,6 @@ export default function FleetDashboard({ onBack }) {
   const [equipFilter, setEquipFilter] = useState("");
   const [statusDetailModal, setStatusDetailModal] = useState(null);
   const [calendarWeekOffset, setCalendarWeekOffset] = useState(0);
-  const [recepcionModal, setRecepcionModal] = useState(null);
 
   const [flota, setFlota] = useState([]);
   const [equipoMap, setEquipoMap] = useState({});
@@ -506,8 +513,7 @@ export default function FleetDashboard({ onBack }) {
         )}
         {activeTab === "calendar" && (
           <CalendarView equipment={filteredEquipment} events={serviceEvents}
-            weekOffset={calendarWeekOffset} setWeekOffset={setCalendarWeekOffset}
-            isMobile={isMobile} onEventClick={setRecepcionModal} />
+            weekOffset={calendarWeekOffset} setWeekOffset={setCalendarWeekOffset} isMobile={isMobile} />
         )}
         {activeTab === "records" && (
           <RecordView equipment={filteredEquipment} records={noOkRecords} isMobile={isMobile} />
@@ -522,15 +528,6 @@ export default function FleetDashboard({ onBack }) {
         <DetailModal equipment={statusDetailModal}
           records={noOkRecords.filter((r) => r.equipmentId === statusDetailModal.id)}
           onClose={() => setStatusDetailModal(null)} />
-      )}
-
-      {recepcionModal && (
-        <RecepcionModal
-          equipo={recepcionModal}
-          fecha={recepcionModal.fecha}
-          onClose={() => setRecepcionModal(null)}
-          onSuccess={() => setRecepcionModal(null)}
-        />
       )}
     </div>
   );
@@ -624,7 +621,7 @@ function CalendarView({ equipment, events, weekOffset, setWeekOffset, isMobile, 
   const weekDates = Array.from({ length: 7 }, (_, i) => {
     const d = new Date(monday); d.setDate(monday.getDate() + i); return d;
   });
-  const todayStr = now.toISOString().split("T")[0];
+  const todayStr = toLocalDate(now);
   const eqIds = new Set(equipment.map((e) => e.id));
   const filteredEvents = events.filter((ev) => eqIds.has(ev.equipmentId));
   const hours = Array.from({ length: 17 }, (_, i) => i + 7); // 07:00 a 23:00
@@ -633,7 +630,7 @@ function CalendarView({ equipment, events, weekOffset, setWeekOffset, isMobile, 
   const eventsByDay = useMemo(() => {
     const g = {};
     weekDates.forEach((d) => {
-      const ds = d.toISOString().split("T")[0];
+      const ds = toLocalDate(d);
       g[ds] = filteredEvents.filter((ev) => ev.datetime.startsWith(ds)).sort((a, b) => a.datetime.localeCompare(b.datetime));
     });
     return g;
@@ -651,7 +648,7 @@ function CalendarView({ equipment, events, weekOffset, setWeekOffset, isMobile, 
         <div style={styles.calendarGrid}>
           <div style={styles.calTimeHeader}></div>
           {weekDates.map((d, i) => {
-            const isToday = d.toISOString().split("T")[0] === todayStr;
+            const isToday = toLocalDate(d) === todayStr;
             return (
               <div key={i} style={{ ...styles.calDayHeader, ...(isToday ? styles.calDayToday : {}) }}>
                 <span style={styles.calDayName}>{DAYS[i]}</span>
@@ -663,7 +660,7 @@ function CalendarView({ equipment, events, weekOffset, setWeekOffset, isMobile, 
             <>
               <div key={`t-${hour}`} style={styles.calTimeCell}>{`${hour}:00`}</div>
               {weekDates.map((d, di) => {
-                const ds = d.toISOString().split("T")[0];
+                const ds = toLocalDate(d);
                 const de = filteredEvents.filter((ev) => {
                   const eh = parseInt(ev.datetime.split("T")[1]?.split(":")[0]);
                   return ev.datetime.startsWith(ds) && eh === hour;
@@ -671,12 +668,9 @@ function CalendarView({ equipment, events, weekOffset, setWeekOffset, isMobile, 
                 return (
                   <div key={`${hour}-${di}`} style={styles.calCell}>
                     {de.map((ev, ei) => (
-                      <div key={ei}
-                        onClick={() => onEventClick?.({ equipmentId: ev.equipmentId, equipmentName: ev.equipmentName, fecha: ev.datetime.split("T")[0] })}
-                        style={{ ...styles.calEvent, borderLeftColor: ev.type === "excepcion" ? "#8b5cf6" : "#f59e0b", background: ev.type === "excepcion" ? "#2e1065" : "#422006", cursor: "pointer" }}>
+                      <div key={ei} style={{ ...styles.calEvent, borderLeftColor: ev.type === "excepcion" ? "#8b5cf6" : "#f59e0b", background: ev.type === "excepcion" ? "#2e1065" : "#422006" }}>
                         <span style={styles.calEventTime}>{ev.datetime.split("T")[1]?.slice(0, 5)}</span>
                         <span style={styles.calEventName}>{ev.equipmentId}</span>
-                        <span style={{ display: "block", fontSize: 9, color: "#6b7280", marginTop: 1 }}>→ Recepción</span>
                       </div>
                     ))}
                   </div>
@@ -689,7 +683,7 @@ function CalendarView({ equipment, events, weekOffset, setWeekOffset, isMobile, 
 
       <div className="fleet-cal-list">
         {weekDates.map((d) => {
-          const ds = d.toISOString().split("T")[0];
+          const ds = toLocalDate(d);
           const de = eventsByDay[ds] || [];
           const isToday = ds === todayStr;
           return (
@@ -703,13 +697,10 @@ function CalendarView({ equipment, events, weekOffset, setWeekOffset, isMobile, 
               {de.length === 0
                 ? <div style={{ fontSize: 11, color: "#374151", padding: "4px 12px" }}>Sin servicios programados</div>
                 : de.map((ev, i) => (
-                  <div key={i}
-                    onClick={() => onEventClick?.({ equipmentId: ev.equipmentId, equipmentName: ev.equipmentName, fecha: ev.datetime.split("T")[0] })}
-                    style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", background: ev.type === "excepcion" ? "#2e1065" : "#422006", borderRadius: 6, borderLeft: `3px solid ${ev.type === "excepcion" ? "#8b5cf6" : "#f59e0b"}`, marginBottom: 4, fontSize: 12, cursor: "pointer" }}>
+                  <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", background: ev.type === "excepcion" ? "#2e1065" : "#422006", borderRadius: 6, borderLeft: `3px solid ${ev.type === "excepcion" ? "#8b5cf6" : "#f59e0b"}`, marginBottom: 4, fontSize: 12 }}>
                     <span style={{ color: "#9ca3af", minWidth: 40 }}>{ev.datetime.split("T")[1]?.slice(0, 5)}</span>
                     <span style={{ fontWeight: 700, color: "#f3f4f6" }}>{ev.equipmentId}</span>
-                    <span style={{ color: "#9ca3af", flex: 1 }}>{ev.equipmentName}</span>
-                    <span style={{ color: "#6b7280", fontSize: 10 }}>→ Recepción</span>
+                    <span style={{ color: "#9ca3af" }}>{ev.equipmentName}</span>
                   </div>
                 ))
               }
