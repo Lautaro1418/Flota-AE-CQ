@@ -619,7 +619,7 @@ function CalendarView({ equipment, events, weekOffset, setWeekOffset, isMobile, 
   const todayStr = toLocalDate(now);
   const eqIds = new Set(equipment.map((e) => e.id));
   const filteredEvents = events.filter((ev) => eqIds.has(ev.equipmentId));
-  const hours = Array.from({ length: 13 }, (_, i) => i + 7);
+  const hours = Array.from({ length: 17 }, (_, i) => i + 7);
   const weekTitle = `Semana del ${monday.toLocaleDateString("es-AR", { day: "2-digit", month: "long" })} al ${weekDates[6].toLocaleDateString("es-AR", { day: "2-digit", month: "long", year: "numeric" })}`;
 
   const eventsByDay = useMemo(() => {
