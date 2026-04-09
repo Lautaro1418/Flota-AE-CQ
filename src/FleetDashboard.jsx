@@ -603,7 +603,13 @@ function StatusFlota({ equipment, counts, onDetail, isMobile }) {
   );
 }
 
-function CalendarView({ equipment, events, weekOffset, setWeekOffset, isMobile }) {
+function CalendarView({ equipment, events, weekOffset, setWeekOffset, isMobile, onEventClick }) {
+  const toLocalDate = (d) => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+  };
   const now = new Date();
   const monday = new Date(now);
   monday.setDate(now.getDate() - ((now.getDay() + 6) % 7) + weekOffset * 7);
