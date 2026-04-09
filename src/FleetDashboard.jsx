@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
 import './App.css';
 import FueraDeServicio from './FueraDeServicio.jsx';
+import RecepcionModal from './RecepcionModal.jsx';          // ── NUEVO: import del modal de recepción
 import { supabase } from './supabaseClient.js';
 
 function useIsMobile() {
@@ -67,7 +68,6 @@ function buildEquipoMap(flotaData) {
   if (!flotaData?.length) return map;
   flotaData.forEach((row) => {
     if (row.equipo && row.id_corto) {
-      // Guardar con clave normalizada Y clave original para máximo match
       const normalized = row.equipo.trim().toUpperCase()
         .replace(/N[°º]/g, "N°").replace(/\s+/g, " ");
       map[normalized] = row.id_corto;
@@ -103,7 +103,6 @@ function transformChecksToNoOk(checksData, equipoMap) {
 }
 
 // ── services_template → eventos calendario (con excepciones) ──
-// Excepciones pueden mover un turno a cualquier día/hora de la semana
 function transformServicesTemplate(servicesData, equipoMap, weekOffset = 0, excepciones = []) {
   const events = [];
   if (!servicesData?.length) return events;
@@ -117,18 +116,14 @@ function transformServicesTemplate(servicesData, equipoMap, weekOffset = 0, exce
   const weekStart = monday.toISOString().split("T")[0];
   const weekEnd = weekEndDate.toISOString().split("T")[0];
 
-  // Equipos cuyo turno original del template fue reemplazado esta semana
-  // clave: "EQUIPONOMBRE|fechaOriginalEnTemplate"
   const reemplazados = new Set();
 
-  // 1. Procesar excepciones que caen en esta semana
   excepciones.forEach((exc) => {
     const fechaExc = (exc.fecha || "").toString().slice(0, 10);
     const equipKey = (exc.equipo || "").trim().toUpperCase();
     const equipId = equipoMap[equipKey];
     if (!equipId) return;
 
-    // Agregar evento nuevo en la fecha de la excepción (si tiene horario)
     if (fechaExc >= weekStart && fechaExc <= weekEnd && exc.inicio) {
       events.push({
         equipmentId: equipId,
@@ -140,8 +135,6 @@ function transformServicesTemplate(servicesData, equipoMap, weekOffset = 0, exce
       });
     }
 
-    // Marcar el día original del template para este equipo como reemplazado
-    // Solo suprimir turno original si la excepción cae en ESTA semana
     if (fechaExc >= weekStart && fechaExc <= weekEnd) {
       servicesData.forEach((svc) => {
         if ((svc.equipo || "").trim().toUpperCase() !== equipKey) return;
@@ -154,7 +147,6 @@ function transformServicesTemplate(servicesData, equipoMap, weekOffset = 0, exce
     }
   });
 
-  // 2. Agregar turnos del template que NO fueron reemplazados
   servicesData.forEach((svc) => {
     const dayOffset = DAY_INDEX[svc.dia?.toUpperCase().trim()];
     if (dayOffset === undefined) return;
@@ -178,6 +170,7 @@ function transformServicesTemplate(servicesData, equipoMap, weekOffset = 0, exce
 
   return events;
 }
+
 // ── fuera_de_servicio → formato interno ───────────────────────
 function transformFds(fdsData) {
   if (!fdsData?.length) return [];
@@ -263,6 +256,10 @@ export default function FleetDashboard({ onBack }) {
   const [dataSource, setDataSource] = useState("loading");
   const [lastUpdated, setLastUpdated] = useState(null);
 
+  // ── NUEVO: estado para el modal de recepción post-service ──
+  const [recepcionModal, setRecepcionModal] = useState(null);
+  // recepcionModal = { equipo: { equipmentId, equipmentName }, fecha: "YYYY-MM-DD" } | null
+
   useEffect(() => {
     async function fetchData() {
       const isConfigured = import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -320,7 +317,6 @@ export default function FleetDashboard({ onBack }) {
 
   const handleRefresh = useCallback(() => {
     setRefreshing(true);
-    // Re-ejecutar el fetch completo
     const since = new Date();
     since.setDate(since.getDate() - 14);
     const sinceStr = since.toISOString().split("T")[0];
@@ -345,6 +341,19 @@ export default function FleetDashboard({ onBack }) {
     }).finally(() => setRefreshing(false));
   }, []);
 
+  // ── NUEVO: handler para click en evento del calendario ──────
+  // Funciona como el "portero" del modal: recibe el evento del calendario
+  // y prepara el payload que RecepcionModal necesita para funcionar.
+  const handleEventClick = useCallback((ev) => {
+    setRecepcionModal({
+      equipo: {
+        equipmentId:   ev.equipmentId,
+        equipmentName: ev.equipmentName || ev.equipmentId,
+      },
+      fecha: ev.datetime.split("T")[0],
+    });
+  }, []);
+
   const serviceEvents = useMemo(
     () => transformServicesTemplate(servicesRaw, equipoMap, calendarWeekOffset, excepcionesRaw),
     [servicesRaw, equipoMap, calendarWeekOffset, excepcionesRaw]
@@ -358,7 +367,6 @@ export default function FleetDashboard({ onBack }) {
   const effectiveEquipment = useMemo(() => {
     const nextSvcMap = {};
     const now = new Date();
-    // Para nextService usamos siempre la semana actual (offset 0)
     const thisWeekEvents = transformServicesTemplate(servicesRaw, equipoMap, 0, excepcionesRaw);
     thisWeekEvents.forEach((ev) => {
       const d = new Date(ev.datetime);
@@ -512,8 +520,10 @@ export default function FleetDashboard({ onBack }) {
             onDetail={setStatusDetailModal} isMobile={isMobile} />
         )}
         {activeTab === "calendar" && (
+          // ── NUEVO: se pasa onEventClick al CalendarView ─────
           <CalendarView equipment={filteredEquipment} events={serviceEvents}
-            weekOffset={calendarWeekOffset} setWeekOffset={setCalendarWeekOffset} isMobile={isMobile} />
+            weekOffset={calendarWeekOffset} setWeekOffset={setCalendarWeekOffset}
+            isMobile={isMobile} onEventClick={handleEventClick} />
         )}
         {activeTab === "records" && (
           <RecordView equipment={filteredEquipment} records={noOkRecords} isMobile={isMobile} />
@@ -528,6 +538,20 @@ export default function FleetDashboard({ onBack }) {
         <DetailModal equipment={statusDetailModal}
           records={noOkRecords.filter((r) => r.equipmentId === statusDetailModal.id)}
           onClose={() => setStatusDetailModal(null)} />
+      )}
+
+      {/* ── NUEVO: modal de recepción post-service ─────────────
+          Se abre al tocar cualquier evento del calendario.
+          Cuando resultado === "NO CONFORME", RecepcionModal inserta en
+          la tabla `recepciones` de Supabase, lo que dispara el trigger
+          de Power Automate que envía el correo de alerta. */}
+      {recepcionModal && (
+        <RecepcionModal
+          equipo={recepcionModal.equipo}
+          fecha={recepcionModal.fecha}
+          onClose={() => setRecepcionModal(null)}
+          onSuccess={() => setRecepcionModal(null)}
+        />
       )}
     </div>
   );
@@ -614,6 +638,9 @@ function StatusFlota({ equipment, counts, onDetail, isMobile }) {
   );
 }
 
+// ── CalendarView: recibe onEventClick y lo conecta a cada evento ──
+// La analogía es simple: cada recuadro del calendario es un "botón de
+// apertura de acta" — al tocarlo se abre el formulario de recepción.
 function CalendarView({ equipment, events, weekOffset, setWeekOffset, isMobile, onEventClick }) {
   const now = new Date();
   const monday = new Date(now);
@@ -644,6 +671,7 @@ function CalendarView({ equipment, events, weekOffset, setWeekOffset, isMobile, 
         <button style={styles.weekBtn} onClick={() => setWeekOffset(weekOffset + 1)}>Siguiente →</button>
       </div>
 
+      {/* ── GRID desktop ─────────────────────────────────────── */}
       <div className="fleet-cal-grid-container">
         <div style={styles.calendarGrid}>
           <div style={styles.calTimeHeader}></div>
@@ -668,7 +696,21 @@ function CalendarView({ equipment, events, weekOffset, setWeekOffset, isMobile, 
                 return (
                   <div key={`${hour}-${di}`} style={styles.calCell}>
                     {de.map((ev, ei) => (
-                      <div key={ei} style={{ ...styles.calEvent, borderLeftColor: ev.type === "excepcion" ? "#8b5cf6" : "#f59e0b", background: ev.type === "excepcion" ? "#2e1065" : "#422006" }}>
+                      // ── NUEVO: onClick + cursor pointer en cada evento del grid ──
+                      <div
+                        key={ei}
+                        onClick={() => onEventClick?.(ev)}
+                        title="Registrar recepción post-service"
+                        style={{
+                          ...styles.calEvent,
+                          borderLeftColor: ev.type === "excepcion" ? "#8b5cf6" : "#f59e0b",
+                          background: ev.type === "excepcion" ? "#2e1065" : "#422006",
+                          cursor: "pointer",
+                          transition: "filter 0.15s, transform 0.1s",
+                        }}
+                        onMouseEnter={(e) => { e.currentTarget.style.filter = "brightness(1.35)"; e.currentTarget.style.transform = "scale(1.03)"; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.filter = "brightness(1)";    e.currentTarget.style.transform = "scale(1)"; }}
+                      >
                         <span style={styles.calEventTime}>{ev.datetime.split("T")[1]?.slice(0, 5)}</span>
                         <span style={styles.calEventName}>{ev.equipmentId}</span>
                       </div>
@@ -681,6 +723,7 @@ function CalendarView({ equipment, events, weekOffset, setWeekOffset, isMobile, 
         </div>
       </div>
 
+      {/* ── LISTA mobile ─────────────────────────────────────── */}
       <div className="fleet-cal-list">
         {weekDates.map((d) => {
           const ds = toLocalDate(d);
@@ -697,10 +740,28 @@ function CalendarView({ equipment, events, weekOffset, setWeekOffset, isMobile, 
               {de.length === 0
                 ? <div style={{ fontSize: 11, color: "#374151", padding: "4px 12px" }}>Sin servicios programados</div>
                 : de.map((ev, i) => (
-                  <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", background: ev.type === "excepcion" ? "#2e1065" : "#422006", borderRadius: 6, borderLeft: `3px solid ${ev.type === "excepcion" ? "#8b5cf6" : "#f59e0b"}`, marginBottom: 4, fontSize: 12 }}>
+                  // ── NUEVO: onClick + cursor pointer en cada evento de la lista mobile ──
+                  <div
+                    key={i}
+                    onClick={() => onEventClick?.(ev)}
+                    style={{
+                      display: "flex", alignItems: "center", gap: 10,
+                      padding: "10px 12px",
+                      background: ev.type === "excepcion" ? "#2e1065" : "#422006",
+                      borderRadius: 6,
+                      borderLeft: `3px solid ${ev.type === "excepcion" ? "#8b5cf6" : "#f59e0b"}`,
+                      marginBottom: 4, fontSize: 12,
+                      cursor: "pointer",
+                      WebkitTapHighlightColor: "transparent",
+                    }}
+                  >
                     <span style={{ color: "#9ca3af", minWidth: 40 }}>{ev.datetime.split("T")[1]?.slice(0, 5)}</span>
                     <span style={{ fontWeight: 700, color: "#f3f4f6" }}>{ev.equipmentId}</span>
-                    <span style={{ color: "#9ca3af" }}>{ev.equipmentName}</span>
+                    <span style={{ color: "#9ca3af", flex: 1 }}>{ev.equipmentName}</span>
+                    {/* ── NUEVO: indicador visual de acción disponible ── */}
+                    <span style={{ fontSize: 10, color: "#6b7280", background: "#1f2937", padding: "2px 6px", borderRadius: 3, flexShrink: 0 }}>
+                      Recepción →
+                    </span>
                   </div>
                 ))
               }
@@ -712,19 +773,19 @@ function CalendarView({ equipment, events, weekOffset, setWeekOffset, isMobile, 
       <div style={styles.calLegend}>
         <div style={styles.legendItem}><span style={{ ...styles.legendDot, background: "#f59e0b" }} />Service semanal programado</div>
         <div style={styles.legendItem}><span style={{ ...styles.legendDot, background: "#8b5cf6" }} />Excepción (horario modificado)</div>
+        {/* ── NUEVO: ítem de leyenda que explica la interacción ── */}
+        <div style={styles.legendItem}><span style={{ ...styles.legendDot, background: "#16a34a" }} />Tocá un servicio para registrar recepción post-taller</div>
       </div>
     </div>
   );
 }
 
 function RecordView({ equipment, records, isMobile }) {
-  const [selectedEquip, setSelectedEquip] = useState(null);   // click fila → resumen equipo
-  const [selectedItem, setSelectedItem] = useState(null);     // click header → resumen ítem
-  const [selectedCell, setSelectedCell] = useState(null);     // click celda → equipo+ítem
-  const [tooltip, setTooltip] = useState(null);               // hover desktop
-
-  // Drawer mobile — unifica los tres modos
-  const [drawer, setDrawer] = useState(null); // { type: "equip"|"item"|"cell", ... }
+  const [selectedEquip, setSelectedEquip] = useState(null);
+  const [selectedItem, setSelectedItem] = useState(null);
+  const [selectedCell, setSelectedCell] = useState(null);
+  const [tooltip, setTooltip] = useState(null);
+  const [drawer, setDrawer] = useState(null);
 
   const closeAll = () => {
     setSelectedEquip(null);
@@ -746,7 +807,6 @@ function RecordView({ equipment, records, isMobile }) {
     return m;
   }, [relevantRecords]);
 
-  // En mobile mostramos SOLO columnas que tienen al menos 1 falla
   const displayItems = useMemo(() => {
     if (!isMobile) return CHECK_ITEMS;
     return CHECK_ITEMS.filter((item) =>
@@ -754,7 +814,6 @@ function RecordView({ equipment, records, isMobile }) {
     );
   }, [isMobile, aggregated, equipment]);
 
-  // Registros filtrados para el panel activo
   const panelRecords = useMemo(() => {
     if (selectedEquip)
       return relevantRecords.filter((r) => r.equipmentId === selectedEquip).sort((a, b) => b.date.localeCompare(a.date));
@@ -773,7 +832,6 @@ function RecordView({ equipment, records, isMobile }) {
     ? `${selectedCell.equipId} × ${selectedCell.item}`
     : "";
 
-  // Handlers
   const handleEquipClick = (equipId) => {
     if (isMobile) {
       setDrawer({ type: "equip", id: equipId });
@@ -806,7 +864,6 @@ function RecordView({ equipment, records, isMobile }) {
     }
   };
 
-  // Tooltip desktop (hover)
   const handleCellHover = (e, equipId, item, count) => {
     if (isMobile || count === 0) return;
     const cr = relevantRecords
@@ -816,7 +873,6 @@ function RecordView({ equipment, records, isMobile }) {
     setTooltip({ x: e.clientX, y: e.clientY, equipId, item, count, records: cr });
   };
 
-  // Registros del drawer mobile
   const drawerRecords = useMemo(() => {
     if (!drawer) return [];
     if (drawer.type === "equip")
@@ -843,16 +899,13 @@ function RecordView({ equipment, records, isMobile }) {
         }
       </p>
 
-      {/* ─── Tabla heatmap ─── */}
       <div style={rs.tableWrap} className="fleet-table-container fleet-heatmap-container">
         <table style={rs.table}>
           <thead>
             <tr>
-              {/* Header esquina */}
               <th style={{ ...rs.th, position: "sticky", left: 0, background: "#111827", zIndex: 3, minWidth: 70 }}>
                 EQUIPO
               </th>
-              {/* Headers de ítems — clickeables */}
               {displayItems.map((item, i) => {
                 const totalItem = relevantRecords.filter((r) => r.item === item).length;
                 const isSelected = selectedItem === item;
@@ -886,7 +939,6 @@ function RecordView({ equipment, records, isMobile }) {
               const isEquipSelected = selectedEquip === eq.id;
               return (
                 <tr key={eq.id} style={{ ...rs.tr, background: isEquipSelected ? "#1e293b" : undefined }}>
-                  {/* Nombre equipo — clickeable */}
                   <td
                     onClick={() => handleEquipClick(eq.id)}
                     style={{
@@ -901,7 +953,6 @@ function RecordView({ equipment, records, isMobile }) {
                     }}>
                     {eq.id}
                   </td>
-                  {/* Celdas — clickeables */}
                   {displayItems.map((item, i) => {
                     const c = eqData[item] || 0;
                     const intensity = c === 0 ? 0 : Math.min(c / 4, 1);
@@ -930,7 +981,6 @@ function RecordView({ equipment, records, isMobile }) {
                       </td>
                     );
                   })}
-                  {/* Total */}
                   <td style={{
                     ...rs.td, textAlign: "center", fontWeight: 800,
                     color: total > 5 ? "#ef4444" : total > 2 ? "#eab308" : "#9ca3af",
@@ -945,7 +995,6 @@ function RecordView({ equipment, records, isMobile }) {
         </table>
       </div>
 
-      {/* ─── Tooltip hover (solo desktop) ─── */}
       {tooltip && !isMobile && (
         <div style={{
           position: "fixed",
@@ -975,7 +1024,6 @@ function RecordView({ equipment, records, isMobile }) {
         </div>
       )}
 
-      {/* ─── Panel detalle (desktop) ─── */}
       {(selectedEquip || selectedItem || selectedCell) && panelRecords.length > 0 && !isMobile && (
         <div style={rs.panel}>
           <div style={rs.panelHeader}>
@@ -986,15 +1034,12 @@ function RecordView({ equipment, records, isMobile }) {
         </div>
       )}
 
-      {/* ─── Drawer mobile ─── */}
       {isMobile && drawer && (
         <>
-          {/* Overlay */}
           <div
             onClick={() => setDrawer(null)}
             style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 998 }}
           />
-          {/* Drawer */}
           <div style={rs.drawer}>
             <div style={rs.drawerHandle} />
             <div style={rs.drawerHeader}>
@@ -1017,7 +1062,6 @@ function RecordView({ equipment, records, isMobile }) {
   );
 }
 
-// ─── Lista de registros reutilizable ─────────────────────────
 function RecordList({ records, isMobile }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -1056,7 +1100,6 @@ function RecordList({ records, isMobile }) {
   );
 }
 
-// ─── Estilos del RecordView ───────────────────────────────────
 const rs = {
   sectionDesc: { fontSize: 13, color: "#9ca3af", marginBottom: 16, lineHeight: 1.5 },
   tableWrap: { overflowX: "auto", borderRadius: 10, border: "1px solid #1f2937" },
@@ -1089,7 +1132,6 @@ const rs = {
     color: "#6b7280", padding: "4px 10px", borderRadius: 6,
     cursor: "pointer", fontFamily: "inherit", fontSize: 13, flexShrink: 0,
   },
-  // ── Drawer mobile ──
   drawer: {
     position: "fixed", bottom: 0, left: 0, right: 0,
     background: "#111827", borderRadius: "16px 16px 0 0",
