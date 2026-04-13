@@ -14,7 +14,7 @@ export default function LandingPage({ onEnterDashboard, onEnterForms, onEnterAdm
       color: "var(--accent)",
       colorDim: "var(--accent-dim)",
       icon: (
-        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
           <rect x="3" y="3" width="7" height="7" rx="1.5"/>
           <rect x="14" y="3" width="7" height="7" rx="1.5"/>
           <rect x="3" y="14" width="7" height="7" rx="1.5"/>
@@ -25,12 +25,12 @@ export default function LandingPage({ onEnterDashboard, onEnterForms, onEnterAdm
     },
     {
       key: "forms",
-      title: "Formularios",
+      title: "Formulario de Check",
       desc: "Check diario de máquina — completá antes de operar",
       color: "var(--info)",
       colorDim: "var(--info-bg)",
       icon: (
-        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
           <path d="M9 12h6M9 8h6M9 16h4"/>
           <rect x="4" y="2" width="16" height="20" rx="2"/>
         </svg>
@@ -44,7 +44,7 @@ export default function LandingPage({ onEnterDashboard, onEnterForms, onEnterAdm
       color: "var(--purple)",
       colorDim: "var(--purple-bg)",
       icon: (
-        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
           <path d="M12.22 2h-.44a2 2 0 00-2 2v.18a2 2 0 01-1 1.73l-.43.25a2 2 0 01-2 0l-.15-.08a2 2 0 00-2.73.73l-.22.38a2 2 0 00.73 2.73l.15.1a2 2 0 011 1.72v.51a2 2 0 01-1 1.74l-.15.09a2 2 0 00-.73 2.73l.22.38a2 2 0 002.73.73l.15-.08a2 2 0 012 0l.43.25a2 2 0 011 1.73V20a2 2 0 002 2h.44a2 2 0 002-2v-.18a2 2 0 011-1.73l.43-.25a2 2 0 012 0l.15.08a2 2 0 002.73-.73l.22-.39a2 2 0 00-.73-2.73l-.15-.08a2 2 0 01-1-1.74v-.5a2 2 0 011-1.74l.15-.09a2 2 0 00.73-2.73l-.22-.38a2 2 0 00-2.73-.73l-.15.08a2 2 0 01-2 0l-.43-.25a2 2 0 01-1-1.73V4a2 2 0 00-2-2z"/>
           <circle cx="12" cy="12" r="3"/>
         </svg>
@@ -55,12 +55,14 @@ export default function LandingPage({ onEnterDashboard, onEnterForms, onEnterAdm
 
   return (
     <div style={s.root}>
+      {/* Fondo sutil */}
       <div style={s.grid} />
       <div style={s.glow} />
 
+      {/* Header */}
       <header style={s.header}>
         <div style={s.logoWrap}>
-          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2">
             <path d="M12 2L2 7l10 5 10-5-10-5z"/>
             <path d="M2 17l10 5 10-5"/>
             <path d="M2 12l10 5 10-5"/>
@@ -68,14 +70,16 @@ export default function LandingPage({ onEnterDashboard, onEnterForms, onEnterAdm
         </div>
         <div>
           <div style={s.headerTitle}>Flota CQ</div>
-          <div style={s.headerSub}>Sistema de Gestión de Flota — Logística</div>
+          <div style={s.headerSub}>Gestión de Flota · Logística</div>
         </div>
       </header>
 
+      {/* Main */}
       <main style={s.main}>
         <div style={s.intro}>
-          <div style={s.introLabel}>Panel de acceso</div>
-          <h1 style={s.introTitle}>¿Qué querés hacer?</h1>
+          <div style={s.introEyebrow}>Sistema de control</div>
+          <h1 style={s.introTitle}>Panel de acceso</h1>
+          <p style={s.introDesc}>Seleccioná una sección para continuar</p>
         </div>
 
         <div style={s.cards}>
@@ -89,34 +93,35 @@ export default function LandingPage({ onEnterDashboard, onEnterForms, onEnterAdm
                   ...s.card,
                   borderColor: isHovered ? card.color : "var(--border)",
                   background: isHovered ? "var(--bg-elevated)" : "var(--bg-surface)",
-                  transform: isPressed ? "scale(0.97)" : isHovered ? "translateY(-2px)" : "none",
-                  boxShadow: isHovered ? "var(--shadow-md)" : "none",
+                  transform: isPressed ? "scale(0.97)" : isHovered ? "translateY(-3px)" : "none",
+                  boxShadow: isHovered
+                    ? `0 8px 32px rgba(0,0,0,0.4), 0 0 0 1px ${card.color}22`
+                    : "none",
                 }}
                 onMouseEnter={() => setHoveredCard(card.key)}
                 onMouseLeave={() => { setHoveredCard(null); setPressedCard(null); }}
                 onMouseDown={() => setPressedCard(card.key)}
                 onMouseUp={() => setPressedCard(null)}
                 onTouchStart={() => { setHoveredCard(card.key); setPressedCard(card.key); }}
-                onTouchEnd={() => { setHoveredCard(null); setPressedCard(null); }}
+                onTouchEnd={() => { setHoveredCard(null); setPressedCard(null); card.onClick(); }}
                 onClick={card.onClick}
               >
                 <div style={{
                   ...s.cardIcon,
                   background: isHovered ? card.colorDim : "var(--bg-surface-2)",
                   color: card.color,
+                  border: `1px solid ${isHovered ? card.color + "33" : "var(--border)"}`,
                 }}>
                   {card.icon}
                 </div>
                 <div style={s.cardContent}>
-                  <div style={{ ...s.cardTitle, color: card.color }}>{card.title}</div>
+                  <div style={{ ...s.cardTitle, color: isHovered ? card.color : "var(--text-primary)" }}>
+                    {card.title}
+                  </div>
                   <div style={s.cardDesc}>{card.desc}</div>
                 </div>
-                <div style={{
-                  ...s.cardArrow,
-                  color: card.color,
-                  opacity: isHovered ? 1 : 0.25,
-                }}>
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <div style={{ ...s.cardArrow, color: card.color, opacity: isHovered ? 1 : 0.2, transform: isHovered ? "translateX(2px)" : "none", transition: "all 200ms" }}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M5 12h14M12 5l7 7-7 7"/>
                   </svg>
                 </div>
@@ -127,8 +132,8 @@ export default function LandingPage({ onEnterDashboard, onEnterForms, onEnterAdm
       </main>
 
       <footer style={s.footer}>
-        <span style={s.footerDot} />
-        Sistema activo
+        <span style={s.footerDot} className="live-dot" />
+        <span style={{ fontFamily: "var(--font-mono)", letterSpacing: 1 }}>Sistema activo</span>
       </footer>
     </div>
   );
@@ -139,106 +144,95 @@ const s = {
     fontFamily: "var(--font-ui)",
     background: "var(--bg-base)",
     color: "var(--text-primary)",
-    minHeight: "100vh",
+    minHeight: "100dvh",
     display: "flex",
     flexDirection: "column",
     position: "relative",
     overflow: "hidden",
   },
   grid: {
-    position: "absolute",
-    inset: 0,
-    backgroundImage: `
-      linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px)
-    `,
-    backgroundSize: "48px 48px",
+    position: "absolute", inset: 0,
+    backgroundImage: `linear-gradient(rgba(255,255,255,0.015) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.015) 1px, transparent 1px)`,
+    backgroundSize: "52px 52px",
     pointerEvents: "none",
   },
   glow: {
-    position: "absolute",
-    top: "-30%",
-    left: "50%",
+    position: "absolute", top: "-20%", left: "50%",
     transform: "translateX(-50%)",
-    width: "600px",
-    height: "400px",
-    background: "radial-gradient(ellipse, rgba(212,162,62,0.06) 0%, transparent 70%)",
+    width: "700px", height: "350px",
+    background: "radial-gradient(ellipse, rgba(232,200,122,0.05) 0%, transparent 65%)",
     pointerEvents: "none",
   },
   header: {
-    display: "flex",
-    alignItems: "center",
-    gap: 14,
-    padding: "20px 32px",
+    display: "flex", alignItems: "center", gap: 12,
+    padding: "18px 28px",
     borderBottom: "1px solid var(--border)",
-    background: "linear-gradient(180deg, var(--bg-surface) 0%, transparent 100%)",
-    position: "relative",
-    zIndex: 1,
+    background: "var(--bg-surface)",
+    position: "relative", zIndex: 1,
   },
   logoWrap: {
-    width: 48, height: 48,
-    display: "flex", alignItems: "center", justifyContent: "center",
-    background: "var(--bg-surface-2)", borderRadius: "var(--radius-md)",
+    width: 44, height: 44, display: "flex", alignItems: "center", justifyContent: "center",
+    background: "var(--bg-surface-2)", borderRadius: "var(--radius-sm)",
     border: "1px solid var(--accent-dim)", flexShrink: 0,
   },
-  headerTitle: {
-    fontSize: 17, fontWeight: 700, letterSpacing: 0.5, color: "var(--accent)",
-  },
-  headerSub: {
-    fontSize: 12, color: "var(--text-secondary)", marginTop: 2,
-  },
+  headerTitle: { fontSize: 15, fontWeight: 700, color: "var(--accent)", letterSpacing: 0.3 },
+  headerSub:   { fontSize: 11, color: "var(--text-tertiary)", marginTop: 2 },
   main: {
     flex: 1, display: "flex", flexDirection: "column",
     alignItems: "center", justifyContent: "center",
-    padding: "48px 24px", position: "relative", zIndex: 1,
+    padding: "48px 20px 32px",
+    position: "relative", zIndex: 1,
   },
-  intro: { textAlign: "center", marginBottom: 48 },
-  introLabel: {
-    fontSize: 12, letterSpacing: 3, color: "var(--text-tertiary)",
-    textTransform: "uppercase", marginBottom: 12, fontWeight: 500,
+  intro: { textAlign: "center", marginBottom: 40 },
+  introEyebrow: {
+    display: "inline-block",
+    fontSize: 10, fontWeight: 600, letterSpacing: 2.5,
+    color: "var(--accent)", textTransform: "uppercase",
+    background: "var(--accent-dim)", border: "1px solid rgba(232,200,122,0.2)",
+    padding: "4px 12px", borderRadius: "var(--radius-pill)",
+    marginBottom: 16, fontFamily: "var(--font-mono)",
   },
   introTitle: {
-    margin: 0, fontSize: 32, fontWeight: 800, color: "var(--text-primary)",
-    letterSpacing: -0.5,
+    fontSize: "clamp(26px, 5vw, 36px)", fontWeight: 800,
+    color: "var(--text-primary)", letterSpacing: -0.8, margin: "0 0 12px",
   },
+  introDesc: { fontSize: 13, color: "var(--text-tertiary)", margin: 0 },
   cards: {
-    display: "flex", gap: 16, flexWrap: "wrap", justifyContent: "center",
-    width: "100%", maxWidth: 900,
+    display: "flex", gap: 12, flexWrap: "wrap", justifyContent: "center",
+    width: "100%", maxWidth: 860,
   },
   card: {
-    flex: "1 1 260px", maxWidth: 300,
-    display: "flex", alignItems: "center", gap: 16,
-    padding: "22px 20px",
+    flex: "1 1 240px", maxWidth: 280,
+    display: "flex", alignItems: "center", gap: 14,
+    padding: "18px 16px",
     background: "var(--bg-surface)",
     border: "1px solid var(--border)",
     borderRadius: "var(--radius-lg)",
-    cursor: "pointer",
-    textAlign: "left",
+    cursor: "pointer", textAlign: "left",
     transition: "all 200ms ease",
     fontFamily: "var(--font-ui)",
     WebkitTapHighlightColor: "transparent",
+    minHeight: "var(--tap-target)",
   },
   cardIcon: {
-    width: 56, height: 56,
-    display: "flex", alignItems: "center", justifyContent: "center",
-    borderRadius: "var(--radius-md)", flexShrink: 0,
-    transition: "background 200ms ease",
+    width: 48, height: 48, display: "flex", alignItems: "center", justifyContent: "center",
+    borderRadius: "var(--radius-sm)", flexShrink: 0,
+    transition: "all 200ms ease",
   },
-  cardContent: { flex: 1 },
+  cardContent: { flex: 1, minWidth: 0 },
   cardTitle: {
-    fontSize: 15, fontWeight: 700, letterSpacing: 0.3, marginBottom: 4,
+    fontSize: 14, fontWeight: 700, letterSpacing: 0.2, marginBottom: 3,
+    transition: "color 200ms",
   },
-  cardDesc: {
-    fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.5,
-  },
-  cardArrow: {
-    flexShrink: 0, transition: "opacity 200ms ease",
-  },
+  cardDesc: { fontSize: 11, color: "var(--text-secondary)", lineHeight: 1.5 },
+  cardArrow: { flexShrink: 0 },
   footer: {
     display: "flex", alignItems: "center", justifyContent: "center",
-    gap: 8, padding: "16px", fontSize: 11, color: "var(--text-muted)",
-    letterSpacing: 1, position: "relative", zIndex: 1,
-    fontFamily: "var(--font-ui)",
+    gap: 8, padding: "20px", fontSize: 11, color: "var(--text-muted)",
+    position: "relative", zIndex: 1,
   },
-  footerDot: { width: 6, height: 6, borderRadius: "50%", background: "var(--ok)" },
+  footerDot: {
+    width: 6, height: 6, borderRadius: "50%", background: "var(--ok)", display: "inline-block",
+  },
 };
