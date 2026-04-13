@@ -1,8 +1,89 @@
-/* ─── Fleet Dashboard — Responsive ─────────────────────────── */
- 
-* { box-sizing: border-box; }
- 
-/* Tab nav: scroll horizontal en mobile */
+/* ═══════════════════════════════════════════════════════════════
+   FLOTA CQ — Design System v2.0
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ─── Design Tokens ─────────────────────────────────────────── */
+:root {
+  --font-ui: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', 'SF Mono', 'Fira Code', monospace;
+
+  --bg-base: #0c1018;
+  --bg-surface: #131820;
+  --bg-surface-2: #1a2130;
+  --bg-surface-3: #212a3b;
+  --bg-elevated: #1e2736;
+  --bg-hover: #1f2a3a;
+
+  --text-primary: #eaedf2;
+  --text-secondary: #8892a4;
+  --text-tertiary: #5a6478;
+  --text-muted: #3e4758;
+
+  --accent: #d4a23e;
+  --accent-hover: #e4b550;
+  --accent-dim: rgba(212, 162, 62, 0.12);
+
+  --border: #212a3b;
+  --border-subtle: #1a2130;
+  --border-hover: #2d3a50;
+
+  --ok: #34d399;
+  --ok-bg: #071f16;
+  --ok-border: #0d3b2a;
+  --warn: #fbbf24;
+  --warn-bg: #1c1806;
+  --warn-border: #3d3210;
+  --danger: #f87171;
+  --danger-bg: #1f0c0c;
+  --danger-border: #3d1616;
+  --info: #60a5fa;
+  --info-bg: #0c1a36;
+  --info-border: #1a3460;
+  --purple: #a78bfa;
+  --purple-bg: #160f30;
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
+  --radius-pill: 100px;
+
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.3);
+  --shadow-md: 0 4px 16px rgba(0,0,0,0.35);
+  --shadow-lg: 0 12px 40px rgba(0,0,0,0.5);
+  --shadow-glow: 0 0 24px rgba(212,162,62,0.08);
+
+  --transition-fast: 150ms ease;
+  --transition-base: 200ms ease;
+  --transition-slow: 350ms ease;
+}
+
+/* ─── Global reset ──────────────────────────────────────────── */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: var(--font-ui);
+  background: var(--bg-base);
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ─── Smooth tab content transitions ───────────────────────── */
+.fleet-tab-content {
+  animation: fadeSlideIn 250ms ease both;
+}
+@keyframes fadeSlideIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ─── Scrollbar styling ─────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--border-hover); }
+
+/* ─── Tab nav: scroll horizontal en mobile ──────────────────── */
 .fleet-tabs {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
@@ -10,19 +91,28 @@
 }
 .fleet-tabs::-webkit-scrollbar { display: none; }
 .fleet-tab-btn { flex-shrink: 0; }
- 
-/* Table: scroll horizontal */
+
+/* ─── Table: scroll horizontal ──────────────────────────────── */
 .fleet-table-container {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
 }
- 
-/* Calendar mobile list */
+
+/* ─── Calendar mobile list ──────────────────────────────────── */
 .fleet-cal-list { display: none; }
- 
-/* ─── Mobile ≤ 768px ────────────────────────────────────────── */
+
+/* ─── Bottom nav: oculta en desktop ─────────────────────────── */
+.fleet-bottom-nav { display: none; }
+
+/* ─── Tabla mobile cards: ocultas en desktop ────────────────── */
+.fleet-mobile-cards { display: none; }
+.fleet-desktop-table { display: block; }
+
+/* ═══════════════════════════════════════════════════════════════
+   MOBILE ≤ 768px
+   ═══════════════════════════════════════════════════════════════ */
 @media (max-width: 768px) {
- 
+
   /* Header: stack vertical */
   .fleet-header {
     flex-direction: column !important;
@@ -36,18 +126,33 @@
     flex-wrap: wrap;
   }
   .fleet-title {
-    font-size: 13px !important;
-    letter-spacing: 1px !important;
+    font-size: 15px !important;
+    letter-spacing: 0.5px !important;
   }
-  .fleet-subtitle { font-size: 10px !important; }
- 
-  /* Tabs */
-  .fleet-tabs { padding: 0 16px !important; }
-  .fleet-tab-btn {
-    padding: 10px 12px !important;
-    font-size: 11px !important;
+  .fleet-subtitle { font-size: 11px !important; }
+
+  /* Desktop tabs: OCULTAR en mobile */
+  .fleet-tabs { display: none !important; }
+
+  /* Bottom nav: MOSTRAR en mobile */
+  .fleet-bottom-nav {
+    display: flex !important;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 900;
+    background: var(--bg-surface);
+    border-top: 1px solid var(--border);
+    padding: 6px 0 max(8px, env(safe-area-inset-bottom));
+    justify-content: space-around;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
   }
- 
+
+  /* Agregar padding inferior al content para que no tape el bottom nav */
+  .fleet-content { padding-bottom: 80px !important; }
+
   /* Filters: columna única */
   .fleet-filters-bar {
     flex-direction: column !important;
@@ -62,27 +167,26 @@
     min-width: unset !important;
   }
   .fleet-clear-btn { width: 100%; text-align: center; }
- 
+
   /* Content */
-  .fleet-content { padding: 12px 16px !important; }
- 
+  .fleet-content { padding: 14px 16px !important; }
+
   /* Status cards: 2 columnas */
   .fleet-status-cards {
     display: grid !important;
     grid-template-columns: repeat(2, 1fr) !important;
   }
- 
-  /* Table: ocultar columnas secundarias */
-  .fleet-col-type,
-  .fleet-col-horometro,
-  .fleet-col-sector { display: none !important; }
- 
+
+  /* Desktop table → ocultar, Mobile cards → mostrar */
+  .fleet-desktop-table { display: none !important; }
+  .fleet-mobile-cards { display: flex !important; flex-direction: column; gap: 8px; }
+
   /* Acciones más compactas */
   .fleet-action-btn {
-    padding: 4px 8px !important;
-    font-size: 10px !important;
+    padding: 6px 12px !important;
+    font-size: 11px !important;
   }
- 
+
   /* Calendar: ocultar grid, mostrar lista */
   .fleet-cal-grid-container { display: none !important; }
   .fleet-cal-list { display: block !important; }
@@ -91,13 +195,13 @@
     align-items: flex-start !important;
     gap: 8px !important;
   }
- 
-  /* Modal: pantalla completa */
+
+  /* Modal: pantalla completa desde abajo */
   .fleet-modal {
     width: 100% !important;
     max-width: 100% !important;
     max-height: 95vh !important;
-    border-radius: 12px 12px 0 0 !important;
+    border-radius: 16px 16px 0 0 !important;
     position: fixed !important;
     bottom: 0 !important;
     left: 0 !important;
@@ -106,20 +210,45 @@
   .fleet-modal-grid {
     grid-template-columns: 1fr !important;
   }
- 
+
   /* FdS form */
   .fds-form-grid {
     grid-template-columns: 1fr !important;
   }
   .fds-table-col-sector,
   .fds-table-col-type { display: none !important; }
- 
+
   /* Record heatmap: scroll horizontal */
   .fleet-heatmap-container { overflow-x: auto; }
+
+  /* Ocultar columnas de la tabla de heatmap que no caben */
+  .fleet-col-type,
+  .fleet-col-horometro,
+  .fleet-col-sector { display: none !important; }
 }
- 
-/* ─── Tablet ≤ 1024px ───────────────────────────────────────── */
+
+/* ═══════════════════════════════════════════════════════════════
+   TABLET ≤ 1024px
+   ═══════════════════════════════════════════════════════════════ */
 @media (max-width: 1024px) and (min-width: 769px) {
   .fleet-col-horometro { display: none !important; }
   .fleet-title { font-size: 16px !important; }
 }
+
+/* ─── Animaciones utilitarias ───────────────────────────────── */
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.animate-slide-up { animation: slideUp 300ms ease both; }
+.animate-fade-in { animation: fadeIn 200ms ease both; }
+.animate-pulse { animation: pulse 1.5s infinite; }
