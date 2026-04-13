@@ -75,7 +75,6 @@ const CHECK_FIELD_MAP = [
   { field: "junta_valvula",  obs: "obs_junta_valvula", label: "Junta válvula carga" },
 ];
 
-// ── Helpers de datos (sin cambios) ────────────────────────────
 function buildEquipoMap(flotaData) {
   const map = {};
   if (!flotaData?.length) return map;
@@ -178,6 +177,7 @@ function transformFlota(flotaData) {
   }));
 }
 
+// FIX 1: cambiado de 3 días a 14 días
 function deriveStatus(equipId, activeFdsIds, noOkRecords, serviceEvents) {
   if (activeFdsIds.has(equipId)) return "fuera_servicio";
   const now = new Date();
@@ -185,10 +185,10 @@ function deriveStatus(equipId, activeFdsIds, noOkRecords, serviceEvents) {
   if (serviceEvents.some((ev) =>
     ev.equipmentId === equipId && new Date(ev.datetime) >= now && new Date(ev.datetime) <= in24h
   )) return "warning";
-  const threeDaysAgo = new Date();
-  threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
+  const fourteenDaysAgo = new Date();
+  fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
   if (noOkRecords.some((r) =>
-    r.equipmentId === equipId && new Date(r.date) >= threeDaysAgo
+    r.equipmentId === equipId && new Date(r.date) >= fourteenDaysAgo
   )) return "no_ok";
   return "ok";
 }
@@ -212,6 +212,8 @@ export default function FleetDashboard({ onBack }) {
   const [activeTab, setActiveTab] = useState("status");
   const [typeFilter, setTypeFilter] = useState("TODOS");
   const [equipFilter, setEquipFilter] = useState("");
+  // FIX 2: nuevo estado para filtro por status
+  const [statusFilter, setStatusFilter] = useState(null);
   const [statusDetailModal, setStatusDetailModal] = useState(null);
   const [calendarWeekOffset, setCalendarWeekOffset] = useState(0);
 
@@ -227,7 +229,6 @@ export default function FleetDashboard({ onBack }) {
   const [lastUpdated, setLastUpdated] = useState(null);
   const [recepcionModal, setRecepcionModal] = useState(null);
 
-  // ── Data fetching (sin cambios) ─────────────────────────────
   useEffect(() => {
     async function fetchData() {
       const isConfigured = import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -321,17 +322,21 @@ export default function FleetDashboard({ onBack }) {
   }, [flota, activeFdsIds, noOkRecords, servicesRaw, equipoMap, excepcionesRaw]);
 
   const types = useMemo(() => [...new Set(flota.map((e) => e.type))], [flota]);
+
+  // FIX 3: statusFilter agregado al filtro
   const filteredEquipment = useMemo(() => effectiveEquipment.filter((e) => {
+    if (statusFilter && e.status !== statusFilter) return false;
     if (typeFilter !== "TODOS" && e.type !== typeFilter) return false;
     if (equipFilter && !e.id.toLowerCase().includes(equipFilter.toLowerCase()) && !e.name.toLowerCase().includes(equipFilter.toLowerCase())) return false;
     return true;
-  }), [effectiveEquipment, typeFilter, equipFilter]);
+  }), [effectiveEquipment, typeFilter, equipFilter, statusFilter]);
+
   const statusCounts = useMemo(() => {
     const c = { ok: 0, warning: 0, no_ok: 0, fuera_servicio: 0 };
-    filteredEquipment.forEach((e) => c[e.status]++);
-    c.total = filteredEquipment.length;
+    effectiveEquipment.forEach((e) => c[e.status]++);
+    c.total = effectiveEquipment.length;
     return c;
-  }, [filteredEquipment]);
+  }, [effectiveEquipment]);
 
   const addFds = useCallback(async (entry) => {
     if (!import.meta.env.VITE_SUPABASE_URL) {
@@ -344,6 +349,7 @@ export default function FleetDashboard({ onBack }) {
     }]).select();
     if (!error && data) setFdsRecords((p) => [...p, transformFds(data)[0]]);
   }, []);
+
   const resolveFds = useCallback(async (id) => {
     const today = new Date().toISOString().split("T")[0];
     if (!import.meta.env.VITE_SUPABASE_URL) {
@@ -373,7 +379,6 @@ export default function FleetDashboard({ onBack }) {
 
   return (
     <div style={ST.root}>
-      {/* ── Header ─────────────────────────────────────────── */}
       <header style={ST.header} className="fleet-header">
         <div style={ST.headerLeft}>
           <div style={ST.logo}>
@@ -407,7 +412,6 @@ export default function FleetDashboard({ onBack }) {
         </div>
       )}
 
-      {/* ── Desktop Tabs ─────────────────────────────────────── */}
       <nav style={ST.tabs} className="fleet-tabs">
         {TABS.map((tab) => (
           <button key={tab.key} onClick={() => setActiveTab(tab.key)} className="fleet-tab-btn"
@@ -417,7 +421,6 @@ export default function FleetDashboard({ onBack }) {
         ))}
       </nav>
 
-      {/* ── Filters ──────────────────────────────────────────── */}
       <div style={ST.filtersBar} className="fleet-filters-bar">
         <div style={ST.filterGroup} className="fleet-filter-group">
           <label style={ST.filterLabel}>Tipo equipo</label>
@@ -431,18 +434,19 @@ export default function FleetDashboard({ onBack }) {
           <input style={ST.input} placeholder="ID o nombre..." value={equipFilter}
             onChange={(e) => setEquipFilter(e.target.value)} />
         </div>
-        {(typeFilter !== "TODOS" || equipFilter) && (
+        {(typeFilter !== "TODOS" || equipFilter || statusFilter) && (
           <button className="fleet-clear-btn" style={ST.clearBtn}
-            onClick={() => { setTypeFilter("TODOS"); setEquipFilter(""); }}>✕ Limpiar</button>
+            onClick={() => { setTypeFilter("TODOS"); setEquipFilter(""); setStatusFilter(null); }}>✕ Limpiar</button>
         )}
       </div>
 
-      {/* ── Content ──────────────────────────────────────────── */}
       <main style={ST.content} className="fleet-content">
         <div key={activeTab} className="fleet-tab-content">
           {activeTab === "status" && (
+            // FIX 4: pasar statusFilter y onStatusFilter a StatusFlota
             <StatusFlota equipment={filteredEquipment} counts={statusCounts}
-              onDetail={setStatusDetailModal} isMobile={isMobile} />
+              onDetail={setStatusDetailModal} isMobile={isMobile}
+              statusFilter={statusFilter} onStatusFilter={setStatusFilter} />
           )}
           {activeTab === "calendar" && (
             <CalendarView equipment={filteredEquipment} events={serviceEvents}
@@ -459,7 +463,6 @@ export default function FleetDashboard({ onBack }) {
         </div>
       </main>
 
-      {/* ── Bottom Nav (mobile only via CSS) ─────────────────── */}
       <nav className="fleet-bottom-nav">
         {TABS.map((tab) => (
           <button key={tab.key} onClick={() => setActiveTab(tab.key)}
@@ -480,7 +483,6 @@ export default function FleetDashboard({ onBack }) {
         ))}
       </nav>
 
-      {/* ── Modals ───────────────────────────────────────────── */}
       {statusDetailModal && (
         <DetailModal equipment={statusDetailModal}
           records={noOkRecords.filter((r) => r.equipmentId === statusDetailModal.id)}
@@ -495,23 +497,46 @@ export default function FleetDashboard({ onBack }) {
 }
 
 // ═════════════════════════════════════════════════════════════
-// STATUS FLOTA — Redesigned cards + table
+// STATUS FLOTA
 // ═════════════════════════════════════════════════════════════
-function StatusFlota({ equipment, counts, onDetail, isMobile }) {
+// FIX 5: firma actualizada + cards clickeables con highlight
+function StatusFlota({ equipment, counts, onDetail, isMobile, statusFilter, onStatusFilter }) {
   return (
     <div>
-      {/* ── Status cards ──────────────────────────────────── */}
       <div style={ST.statusCards} className="fleet-status-cards">
-        {Object.entries(STATUS_CONFIG).map(([key, cfg]) => (
-          <div key={key} style={{ ...ST.statusCard, background: cfg.bg, borderColor: cfg.border }}>
-            <div style={{ ...ST.statusIconWrap, color: cfg.color }}>{CARD_ICONS[cfg.icon]}</div>
-            <div>
-              <div style={{ ...ST.statusNumber, color: cfg.color }}>{counts[key]}</div>
-              <div style={ST.statusLabel}>{cfg.label}</div>
+        {Object.entries(STATUS_CONFIG).map(([key, cfg]) => {
+          const isActive = statusFilter === key;
+          return (
+            <div key={key} onClick={() => onStatusFilter(isActive ? null : key)}
+              style={{
+                ...ST.statusCard,
+                background: cfg.bg,
+                borderColor: isActive ? cfg.color : cfg.border,
+                cursor: "pointer",
+                outline: isActive ? `2px solid ${cfg.color}` : "none",
+                outlineOffset: 2,
+                transform: isActive ? "scale(1.03)" : "none",
+                transition: "all 150ms",
+              }}>
+              <div style={{ ...ST.statusIconWrap, color: cfg.color }}>{CARD_ICONS[cfg.icon]}</div>
+              <div>
+                <div style={{ ...ST.statusNumber, color: cfg.color }}>{counts[key]}</div>
+                <div style={ST.statusLabel}>{cfg.label}</div>
+              </div>
             </div>
-          </div>
-        ))}
-        <div style={{ ...ST.statusCard, background: "var(--purple-bg)", borderColor: "rgba(167,139,250,0.2)" }}>
+          );
+        })}
+        <div onClick={() => onStatusFilter(null)}
+          style={{
+            ...ST.statusCard,
+            background: statusFilter === null ? "rgba(167,139,250,0.15)" : "var(--purple-bg)",
+            borderColor: statusFilter === null ? "var(--purple)" : "rgba(167,139,250,0.2)",
+            cursor: "pointer",
+            outline: statusFilter === null ? "2px solid var(--purple)" : "none",
+            outlineOffset: 2,
+            transform: statusFilter === null ? "scale(1.03)" : "none",
+            transition: "all 150ms",
+          }}>
           <div style={{ ...ST.statusIconWrap, color: "var(--purple)" }}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
           </div>
@@ -522,7 +547,6 @@ function StatusFlota({ equipment, counts, onDetail, isMobile }) {
         </div>
       </div>
 
-      {/* ── Desktop table ─────────────────────────────────── */}
       <div className="fleet-desktop-table">
         <div style={ST.tableContainer} className="fleet-table-container">
           <table style={ST.table}>
@@ -577,7 +601,6 @@ function StatusFlota({ equipment, counts, onDetail, isMobile }) {
         </div>
       </div>
 
-      {/* ── Mobile cards ──────────────────────────────────── */}
       <div className="fleet-mobile-cards">
         {equipment.map((eq) => {
           const cfg = STATUS_CONFIG[eq.status];
@@ -731,7 +754,7 @@ function CalendarView({ equipment, events, weekOffset, setWeekOffset, isMobile, 
 }
 
 // ═════════════════════════════════════════════════════════════
-// RECORD VIEW — Heatmap
+// RECORD VIEW
 // ═════════════════════════════════════════════════════════════
 function RecordView({ equipment, records, isMobile }) {
   const [selectedEquip, setSelectedEquip] = useState(null);
@@ -783,7 +806,6 @@ function RecordView({ equipment, records, isMobile }) {
   }, [drawer, relevantRecords]);
   const drawerTitle = drawer?.type === "equip" ? `Equipo — ${drawer.id}` : drawer?.type === "item" ? `Ítem — ${drawer.item}` : drawer?.type === "cell" ? `${drawer.equipId} × ${drawer.item}` : "";
 
-  // Heatmap color scale: yellow → orange → red
   const heatColor = (c) => {
     if (c === 0) return "transparent";
     if (c === 1) return "rgba(251,191,36,0.2)";
@@ -853,7 +875,6 @@ function RecordView({ equipment, records, isMobile }) {
         </table>
       </div>
 
-      {/* Tooltip */}
       {tooltip && !isMobile && (
         <div style={{ position: "fixed", left: Math.min(tooltip.x + 16, window.innerWidth - 310), top: Math.max(tooltip.y - 20, 10), width: 290, background: "var(--bg-elevated)", border: "1px solid var(--border-hover)", borderRadius: "var(--radius-md)", padding: "12px 14px", zIndex: 9999, boxShadow: "var(--shadow-lg)", pointerEvents: "none", fontSize: 12, fontFamily: "var(--font-ui)" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8, paddingBottom: 8, borderBottom: "1px solid var(--border)" }}>
@@ -873,7 +894,6 @@ function RecordView({ equipment, records, isMobile }) {
         </div>
       )}
 
-      {/* Desktop panel */}
       {(selectedEquip || selectedItem || selectedCell) && panelRecords.length > 0 && !isMobile && (
         <div style={{ marginTop: 20, padding: 16, background: "var(--bg-surface)", borderRadius: "var(--radius-md)", border: "1px solid var(--border)" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
@@ -886,7 +906,6 @@ function RecordView({ equipment, records, isMobile }) {
         </div>
       )}
 
-      {/* Mobile drawer */}
       {isMobile && drawer && (
         <>
           <div onClick={() => setDrawer(null)} className="animate-fade-in"
@@ -1013,15 +1032,11 @@ const ST = {
   input: { padding: "8px 12px", fontSize: 12, background: "var(--bg-surface-2)", color: "var(--text-primary)", border: "1px solid var(--border)", borderRadius: "var(--radius-sm)", fontFamily: "var(--font-ui)", minWidth: 160, transition: "border-color 150ms" },
   clearBtn: { padding: "8px 14px", fontSize: 11, background: "var(--danger-bg)", color: "var(--danger)", border: "1px solid var(--danger-border)", borderRadius: "var(--radius-sm)", cursor: "pointer", fontFamily: "var(--font-ui)", fontWeight: 600 },
   content: { padding: "20px 24px" },
-
-  // Status cards
   statusCards: { display: "flex", gap: 10, marginBottom: 20, flexWrap: "wrap" },
   statusCard: { display: "flex", alignItems: "center", gap: 12, padding: "14px 16px", borderRadius: "var(--radius-md)", border: "1px solid", flex: "1 1 140px", minWidth: 130, transition: "transform 150ms" },
   statusIconWrap: { width: 40, height: 40, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: "var(--radius-sm)", background: "rgba(255,255,255,0.06)", flexShrink: 0 },
   statusNumber: { fontSize: 24, fontWeight: 800, lineHeight: 1 },
   statusLabel: { fontSize: 11, color: "var(--text-secondary)", marginTop: 3, fontWeight: 500 },
-
-  // Table
   tableContainer: { overflowX: "auto", borderRadius: "var(--radius-md)", border: "1px solid var(--border)" },
   table: { width: "100%", borderCollapse: "collapse", fontSize: 13 },
   th: { padding: "10px 14px", textAlign: "left", background: "var(--bg-surface)", color: "var(--text-secondary)", fontWeight: 600, fontSize: 11, letterSpacing: 0.3, borderBottom: "1px solid var(--border)", whiteSpace: "nowrap" },
@@ -1032,8 +1047,6 @@ const ST = {
   urgentBadge: { display: "inline-block", marginLeft: 8, padding: "2px 8px", borderRadius: "var(--radius-pill)", fontSize: 10, background: "var(--warn-bg)", color: "var(--warn)", fontWeight: 600, border: "1px solid var(--warn-border)" },
   detailBtn: { padding: "6px 14px", fontSize: 11, background: "var(--info-bg)", color: "var(--info)", border: "1px solid var(--info-border)", borderRadius: "var(--radius-sm)", cursor: "pointer", fontFamily: "var(--font-ui)", fontWeight: 600, transition: "all 150ms" },
   closeBtn: { background: "transparent", border: "1px solid var(--border)", color: "var(--text-secondary)", padding: "4px 10px", borderRadius: "var(--radius-sm)", cursor: "pointer", fontFamily: "var(--font-ui)", fontSize: 13, flexShrink: 0, transition: "all 150ms" },
-
-  // Calendar
   calendarHeader: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 8 },
   weekBtn: { display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", fontSize: 12, background: "var(--bg-surface-2)", color: "var(--text-primary)", border: "1px solid var(--border)", borderRadius: "var(--radius-sm)", cursor: "pointer", fontFamily: "var(--font-ui)", fontWeight: 500, transition: "all 150ms" },
   weekTitle: { margin: 0, fontSize: 15, color: "var(--text-primary)", fontWeight: 600, textTransform: "capitalize" },
@@ -1051,7 +1064,5 @@ const ST = {
   calLegend: { display: "flex", gap: 20, marginTop: 16, padding: "12px 16px", background: "var(--bg-surface)", borderRadius: "var(--radius-sm)", flexWrap: "wrap" },
   legendItem: { display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: "var(--text-secondary)" },
   legendDot: { width: 8, height: 8, borderRadius: "50%", flexShrink: 0 },
-
-  // Bottom nav
   bottomNavItem: { display: "flex", flexDirection: "column", alignItems: "center", gap: 2, background: "transparent", border: "none", fontFamily: "var(--font-ui)", cursor: "pointer", padding: "4px 8px", WebkitTapHighlightColor: "transparent", transition: "color 200ms" },
 };
