@@ -1,120 +1,131 @@
 import { useState } from "react";
 
-// URL del formulario de Tally
 const TALLY_URL = "https://tally.so/r/2EvQvA";
 
 export default function LandingPage({ onEnterDashboard, onEnterForms, onEnterAdmin }) {
   const [hoveredCard, setHoveredCard] = useState(null);
+  const [pressedCard, setPressedCard] = useState(null);
+
+  const cards = [
+    {
+      key: "dashboard",
+      title: "Tablero de Control",
+      desc: "Status de equipos, calendario de services y registros NO OK",
+      color: "var(--accent)",
+      colorDim: "var(--accent-dim)",
+      icon: (
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="3" y="3" width="7" height="7" rx="1.5"/>
+          <rect x="14" y="3" width="7" height="7" rx="1.5"/>
+          <rect x="3" y="14" width="7" height="7" rx="1.5"/>
+          <rect x="14" y="14" width="7" height="7" rx="1.5"/>
+        </svg>
+      ),
+      onClick: onEnterDashboard,
+    },
+    {
+      key: "forms",
+      title: "Formularios",
+      desc: "Check diario de máquina — completá antes de operar",
+      color: "var(--info)",
+      colorDim: "var(--info-bg)",
+      icon: (
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M9 12h6M9 8h6M9 16h4"/>
+          <rect x="4" y="2" width="16" height="20" rx="2"/>
+        </svg>
+      ),
+      onClick: onEnterForms,
+    },
+    {
+      key: "admin",
+      title: "Administración",
+      desc: "Gestión de flota, personal y calendario de services",
+      color: "var(--purple)",
+      colorDim: "var(--purple-bg)",
+      icon: (
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M12.22 2h-.44a2 2 0 00-2 2v.18a2 2 0 01-1 1.73l-.43.25a2 2 0 01-2 0l-.15-.08a2 2 0 00-2.73.73l-.22.38a2 2 0 00.73 2.73l.15.1a2 2 0 011 1.72v.51a2 2 0 01-1 1.74l-.15.09a2 2 0 00-.73 2.73l.22.38a2 2 0 002.73.73l.15-.08a2 2 0 012 0l.43.25a2 2 0 011 1.73V20a2 2 0 002 2h.44a2 2 0 002-2v-.18a2 2 0 011-1.73l.43-.25a2 2 0 012 0l.15.08a2 2 0 002.73-.73l.22-.39a2 2 0 00-.73-2.73l-.15-.08a2 2 0 01-1-1.74v-.5a2 2 0 011-1.74l.15-.09a2 2 0 00.73-2.73l-.22-.38a2 2 0 00-2.73-.73l-.15.08a2 2 0 01-2 0l-.43-.25a2 2 0 01-1-1.73V4a2 2 0 00-2-2z"/>
+          <circle cx="12" cy="12" r="3"/>
+        </svg>
+      ),
+      onClick: onEnterAdmin,
+    },
+  ];
 
   return (
     <div style={s.root}>
-      {/* Fondo con grid sutil */}
       <div style={s.grid} />
+      <div style={s.glow} />
 
-      {/* Header */}
       <header style={s.header}>
         <div style={s.logoWrap}>
-          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="2">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2">
             <path d="M12 2L2 7l10 5 10-5-10-5z"/>
             <path d="M2 17l10 5 10-5"/>
             <path d="M2 12l10 5 10-5"/>
           </svg>
         </div>
         <div>
-          <div style={s.headerTitle}>FLOTA CQ</div>
+          <div style={s.headerTitle}>Flota CQ</div>
           <div style={s.headerSub}>Sistema de Gestión de Flota — Logística</div>
         </div>
       </header>
 
-      {/* Contenido central */}
       <main style={s.main}>
         <div style={s.intro}>
-          <div style={s.introLabel}>PANEL DE ACCESO</div>
+          <div style={s.introLabel}>Panel de acceso</div>
           <h1 style={s.introTitle}>¿Qué querés hacer?</h1>
         </div>
 
         <div style={s.cards}>
-          {/* Card: Tablero de Control */}
-          <button
-            style={{
-              ...s.card,
-              ...(hoveredCard === "dashboard" ? s.cardHovered : {}),
-              borderColor: hoveredCard === "dashboard" ? "#f59e0b" : "#1f2937",
-            }}
-            onMouseEnter={() => setHoveredCard("dashboard")}
-            onMouseLeave={() => setHoveredCard(null)}
-            onClick={onEnterDashboard}
-          >
-            <div style={{ ...s.cardIcon, background: hoveredCard === "dashboard" ? "#f59e0b22" : "#1f2937" }}>
-              <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="1.5">
-                <rect x="3" y="3" width="7" height="7" rx="1"/>
-                <rect x="14" y="3" width="7" height="7" rx="1"/>
-                <rect x="3" y="14" width="7" height="7" rx="1"/>
-                <rect x="14" y="14" width="7" height="7" rx="1"/>
-              </svg>
-            </div>
-            <div style={s.cardContent}>
-              <div style={s.cardTitle}>Tablero de Control</div>
-            </div>
-            <div style={{ ...s.cardArrow, opacity: hoveredCard === "dashboard" ? 1 : 0.3 }}>
-              →
-            </div>
-          </button>
-
-          {/* Card: Formularios */}
-          <button
-            style={{
-              ...s.card,
-              ...(hoveredCard === "forms" ? s.cardHovered : {}),
-              borderColor: hoveredCard === "forms" ? "#3b82f6" : "#1f2937",
-            }}
-            onMouseEnter={() => setHoveredCard("forms")}
-            onMouseLeave={() => setHoveredCard(null)}
-            onClick={onEnterForms}
-          >
-            <div style={{ ...s.cardIcon, background: hoveredCard === "forms" ? "#3b82f622" : "#1f2937" }}>
-              <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="1.5">
-                <path d="M9 12h6M9 8h6M9 16h4"/>
-                <path d="M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/>
-              </svg>
-            </div>
-            <div style={s.cardContent}>
-              <div style={{ ...s.cardTitle, color: "#93c5fd" }}>Formularios</div>
-            </div>
-            <div style={{ ...s.cardArrow, color: "#3b82f6", opacity: hoveredCard === "forms" ? 1 : 0.3 }}>
-              →
-            </div>
-          </button>
-
-          {/* Card: Admin */}
-          <button
-            style={{
-              ...s.card,
-              ...(hoveredCard === "admin" ? s.cardHovered : {}),
-              borderColor: hoveredCard === "admin" ? "#8b5cf6" : "#1f2937",
-            }}
-            onMouseEnter={() => setHoveredCard("admin")}
-            onMouseLeave={() => setHoveredCard(null)}
-            onClick={onEnterAdmin}
-          >
-            <div style={{ ...s.cardIcon, background: hoveredCard === "admin" ? "#8b5cf622" : "#1f2937" }}>
-              <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" strokeWidth="1.5">
-                <circle cx="12" cy="8" r="4"/>
-                <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
-                <path d="M18 14l2 2 4-4" strokeWidth="2"/>
-              </svg>
-            </div>
-            <div style={s.cardContent}>
-              <div style={{ ...s.cardTitle, color: "#c4b5fd" }}>Administración</div>
-            </div>
-            <div style={{ ...s.cardArrow, color: "#8b5cf6", opacity: hoveredCard === "admin" ? 1 : 0.3 }}>
-              →
-            </div>
-          </button>
+          {cards.map((card) => {
+            const isHovered = hoveredCard === card.key;
+            const isPressed = pressedCard === card.key;
+            return (
+              <button
+                key={card.key}
+                style={{
+                  ...s.card,
+                  borderColor: isHovered ? card.color : "var(--border)",
+                  background: isHovered ? "var(--bg-elevated)" : "var(--bg-surface)",
+                  transform: isPressed ? "scale(0.97)" : isHovered ? "translateY(-2px)" : "none",
+                  boxShadow: isHovered ? "var(--shadow-md)" : "none",
+                }}
+                onMouseEnter={() => setHoveredCard(card.key)}
+                onMouseLeave={() => { setHoveredCard(null); setPressedCard(null); }}
+                onMouseDown={() => setPressedCard(card.key)}
+                onMouseUp={() => setPressedCard(null)}
+                onTouchStart={() => { setHoveredCard(card.key); setPressedCard(card.key); }}
+                onTouchEnd={() => { setHoveredCard(null); setPressedCard(null); }}
+                onClick={card.onClick}
+              >
+                <div style={{
+                  ...s.cardIcon,
+                  background: isHovered ? card.colorDim : "var(--bg-surface-2)",
+                  color: card.color,
+                }}>
+                  {card.icon}
+                </div>
+                <div style={s.cardContent}>
+                  <div style={{ ...s.cardTitle, color: card.color }}>{card.title}</div>
+                  <div style={s.cardDesc}>{card.desc}</div>
+                </div>
+                <div style={{
+                  ...s.cardArrow,
+                  color: card.color,
+                  opacity: isHovered ? 1 : 0.25,
+                }}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M5 12h14M12 5l7 7-7 7"/>
+                  </svg>
+                </div>
+              </button>
+            );
+          })}
         </div>
       </main>
 
-      {/* Footer */}
       <footer style={s.footer}>
         <span style={s.footerDot} />
         Sistema activo
@@ -125,9 +136,9 @@ export default function LandingPage({ onEnterDashboard, onEnterForms, onEnterAdm
 
 const s = {
   root: {
-    fontFamily: "'JetBrains Mono', 'SF Mono', 'Fira Code', monospace",
-    background: "#0a0f1a",
-    color: "#e5e7eb",
+    fontFamily: "var(--font-ui)",
+    background: "var(--bg-base)",
+    color: "var(--text-primary)",
     minHeight: "100vh",
     display: "flex",
     flexDirection: "column",
@@ -138,10 +149,20 @@ const s = {
     position: "absolute",
     inset: 0,
     backgroundImage: `
-      linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px)
+      linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px)
     `,
-    backgroundSize: "40px 40px",
+    backgroundSize: "48px 48px",
+    pointerEvents: "none",
+  },
+  glow: {
+    position: "absolute",
+    top: "-30%",
+    left: "50%",
+    transform: "translateX(-50%)",
+    width: "600px",
+    height: "400px",
+    background: "radial-gradient(ellipse, rgba(212,162,62,0.06) 0%, transparent 70%)",
     pointerEvents: "none",
   },
   header: {
@@ -149,139 +170,75 @@ const s = {
     alignItems: "center",
     gap: 14,
     padding: "20px 32px",
-    borderBottom: "1px solid #1f2937",
-    background: "linear-gradient(180deg, #111827 0%, transparent 100%)",
+    borderBottom: "1px solid var(--border)",
+    background: "linear-gradient(180deg, var(--bg-surface) 0%, transparent 100%)",
     position: "relative",
     zIndex: 1,
   },
   logoWrap: {
-    width: 48,
-    height: 48,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    background: "#1c1917",
-    borderRadius: 10,
-    border: "1px solid #f59e0b44",
-    flexShrink: 0,
+    width: 48, height: 48,
+    display: "flex", alignItems: "center", justifyContent: "center",
+    background: "var(--bg-surface-2)", borderRadius: "var(--radius-md)",
+    border: "1px solid var(--accent-dim)", flexShrink: 0,
   },
   headerTitle: {
-    fontSize: 16,
-    fontWeight: 800,
-    letterSpacing: 4,
-    color: "#f59e0b",
-    textTransform: "uppercase",
+    fontSize: 17, fontWeight: 700, letterSpacing: 0.5, color: "var(--accent)",
   },
   headerSub: {
-    fontSize: 11,
-    color: "#6b7280",
-    letterSpacing: 1,
-    marginTop: 2,
+    fontSize: 12, color: "var(--text-secondary)", marginTop: 2,
   },
   main: {
-    flex: 1,
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    justifyContent: "center",
-    padding: "48px 24px",
-    position: "relative",
-    zIndex: 1,
+    flex: 1, display: "flex", flexDirection: "column",
+    alignItems: "center", justifyContent: "center",
+    padding: "48px 24px", position: "relative", zIndex: 1,
   },
-  intro: {
-    textAlign: "center",
-    marginBottom: 48,
-  },
+  intro: { textAlign: "center", marginBottom: 48 },
   introLabel: {
-    fontSize: 11,
-    letterSpacing: 4,
-    color: "#6b7280",
-    textTransform: "uppercase",
-    marginBottom: 12,
+    fontSize: 12, letterSpacing: 3, color: "var(--text-tertiary)",
+    textTransform: "uppercase", marginBottom: 12, fontWeight: 500,
   },
   introTitle: {
-    margin: 0,
-    fontSize: 32,
-    fontWeight: 800,
-    color: "#f3f4f6",
-    letterSpacing: 1,
+    margin: 0, fontSize: 32, fontWeight: 800, color: "var(--text-primary)",
+    letterSpacing: -0.5,
   },
   cards: {
-    display: "flex",
-    gap: 20,
-    flexWrap: "wrap",
-    justifyContent: "center",
-    width: "100%",
-    maxWidth: 800,
+    display: "flex", gap: 16, flexWrap: "wrap", justifyContent: "center",
+    width: "100%", maxWidth: 900,
   },
   card: {
-    flex: "1 1 340px",
-    maxWidth: 380,
-    display: "flex",
-    alignItems: "center",
-    gap: 20,
-    padding: "28px 24px",
-    background: "#111827",
-    border: "1px solid #1f2937",
-    borderRadius: 16,
+    flex: "1 1 260px", maxWidth: 300,
+    display: "flex", alignItems: "center", gap: 16,
+    padding: "22px 20px",
+    background: "var(--bg-surface)",
+    border: "1px solid var(--border)",
+    borderRadius: "var(--radius-lg)",
     cursor: "pointer",
     textAlign: "left",
-    transition: "all 0.2s ease",
-    fontFamily: "inherit",
-  },
-  cardHovered: {
-    background: "#0d1520",
-    transform: "translateY(-2px)",
-    boxShadow: "0 20px 40px rgba(0,0,0,0.4)",
+    transition: "all 200ms ease",
+    fontFamily: "var(--font-ui)",
+    WebkitTapHighlightColor: "transparent",
   },
   cardIcon: {
-    width: 68,
-    height: 68,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: 12,
-    flexShrink: 0,
-    transition: "background 0.2s",
+    width: 56, height: 56,
+    display: "flex", alignItems: "center", justifyContent: "center",
+    borderRadius: "var(--radius-md)", flexShrink: 0,
+    transition: "background 200ms ease",
   },
-  cardContent: {
-    flex: 1,
-  },
+  cardContent: { flex: 1 },
   cardTitle: {
-    fontSize: 16,
-    fontWeight: 800,
-    color: "#fbbf24",
-    letterSpacing: 0.5,
-    marginBottom: 8,
+    fontSize: 15, fontWeight: 700, letterSpacing: 0.3, marginBottom: 4,
   },
   cardDesc: {
-    fontSize: 12,
-    color: "#6b7280",
-    lineHeight: 1.6,
+    fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.5,
   },
   cardArrow: {
-    fontSize: 22,
-    color: "#f59e0b",
-    fontWeight: 700,
-    transition: "opacity 0.2s",
-    flexShrink: 0,
+    flexShrink: 0, transition: "opacity 200ms ease",
   },
   footer: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    padding: "16px",
-    fontSize: 11,
-    color: "#374151",
-    letterSpacing: 2,
-    position: "relative",
-    zIndex: 1,
+    display: "flex", alignItems: "center", justifyContent: "center",
+    gap: 8, padding: "16px", fontSize: 11, color: "var(--text-muted)",
+    letterSpacing: 1, position: "relative", zIndex: 1,
+    fontFamily: "var(--font-ui)",
   },
-  footerDot: {
-    width: 6,
-    height: 6,
-    borderRadius: "50%",
-    background: "#16a34a",
-  },
+  footerDot: { width: 6, height: 6, borderRadius: "50%", background: "var(--ok)" },
 };
