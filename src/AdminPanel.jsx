@@ -101,14 +101,19 @@ export default function AdminPanel({ onBack }) {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// TAB: FLOTA
+// TAB: FLOTA — MODIFICADO: sector agregado
+// Cambios vs original:
+//   1. newRow incluye sector:""
+//   2. addRow inserta sector en Supabase
+//   3. Tabla muestra columna Sector con <select> inline por fila
+//   4. Formulario "Nuevo equipo" tiene campo Sector
 // ═══════════════════════════════════════════════════════════════
 function FlotaTab() {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(null);
   const [showAdd, setShowAdd] = useState(false);
-  const [newRow, setNewRow] = useState({equipo:"",tipo:"",id_corto:"",horometro:"",activo:true});
+  const [newRow, setNewRow] = useState({equipo:"",tipo:"",id_corto:"",horometro:"",sector:"",activo:true});
   const [msg, setMsg] = useState("");
   const TIPOS = ["AE GLP","AE ELÉCTRICO","APILADORA","CAMIÓN","CONTAINERA"];
 
@@ -128,11 +133,13 @@ function FlotaTab() {
     const {data,error} = await supabase.from("flota").insert([{
       equipo:newRow.equipo.trim().toUpperCase(), tipo:newRow.tipo,
       id_corto:newRow.id_corto.trim().toUpperCase(),
-      horometro:newRow.horometro?parseInt(newRow.horometro):null, activo:true,
+      horometro:newRow.horometro?parseInt(newRow.horometro):null,
+      sector:newRow.sector||null,
+      activo:true,
     }]).select();
     if (!error&&data){
       setRows((prev)=>[...prev,data[0]]);
-      setNewRow({equipo:"",tipo:"",id_corto:"",horometro:"",activo:true});
+      setNewRow({equipo:"",tipo:"",id_corto:"",horometro:"",sector:"",activo:true});
       setShowAdd(false);flash("Equipo agregado ✓");
     }
   };
@@ -149,7 +156,18 @@ function FlotaTab() {
           <div style={s.formGrid}>
             <Field label="ID Corto"><input style={s.input} placeholder="AE-XX" value={newRow.id_corto} onChange={(e)=>setNewRow(p=>({...p,id_corto:e.target.value}))}/></Field>
             <Field label="Nombre completo"><input style={s.input} placeholder="AE N°XX CAT" value={newRow.equipo} onChange={(e)=>setNewRow(p=>({...p,equipo:e.target.value}))}/></Field>
-            <Field label="Tipo"><select style={s.select} value={newRow.tipo} onChange={(e)=>setNewRow(p=>({...p,tipo:e.target.value}))}><option value="">Seleccioná...</option>{TIPOS.map(t=><option key={t} value={t}>{t}</option>)}</select></Field>
+            <Field label="Tipo">
+              <select style={s.select} value={newRow.tipo} onChange={(e)=>setNewRow(p=>({...p,tipo:e.target.value}))}>
+                <option value="">Seleccioná...</option>
+                {TIPOS.map(t=><option key={t} value={t}>{t}</option>)}
+              </select>
+            </Field>
+            <Field label="Sector del equipo">
+              <select style={s.select} value={newRow.sector} onChange={(e)=>setNewRow(p=>({...p,sector:e.target.value}))}>
+                <option value="">Sin asignar</option>
+                {SECTORS.map(sec=><option key={sec} value={sec}>{sec}</option>)}
+              </select>
+            </Field>
             <Field label="Horómetro inicial"><input style={s.input} type="number" value={newRow.horometro} onChange={(e)=>setNewRow(p=>({...p,horometro:e.target.value}))}/></Field>
           </div>
           <div style={{display:"flex",gap:10,marginTop:14}}>
@@ -160,13 +178,28 @@ function FlotaTab() {
       )}
       <div style={s.tableWrap}>
         <table style={s.table}>
-          <thead><tr><th style={s.th}>ID Corto</th><th style={s.th}>Nombre</th><th style={s.th}>Tipo</th><th style={s.th}>Horómetro</th><th style={s.th}>Activo</th></tr></thead>
+          <thead><tr>
+            <th style={s.th}>ID Corto</th>
+            <th style={s.th}>Nombre</th>
+            <th style={s.th}>Tipo</th>
+            <th style={s.th}>Sector</th>
+            <th style={s.th}>Horómetro</th>
+            <th style={s.th}>Activo</th>
+          </tr></thead>
           <tbody>
             {rows.map((row)=>(
               <tr key={row.id} style={{...s.tr,opacity:row.activo?1:0.35}}>
                 <td style={{...s.td,fontFamily:"var(--font-mono)",fontWeight:700,color:"var(--accent)",fontSize:13}}>{row.id_corto}</td>
                 <td style={s.td}>{row.equipo}</td>
                 <td style={s.td}><span style={s.badge}>{row.tipo}</span></td>
+                <td style={s.td}>
+                  <select style={{...s.select,padding:"5px 8px",fontSize:12}}
+                    value={row.sector||""}
+                    onChange={(e)=>updateField(row.id,"sector",e.target.value||null)}>
+                    <option value="">Sin asignar</option>
+                    {SECTORS.map(sec=><option key={sec} value={sec}>{sec}</option>)}
+                  </select>
+                </td>
                 <td style={s.td}><InlineEdit value={row.horometro||""} onSave={(v)=>updateField(row.id,"horometro",v?parseInt(v):null)} saving={saving===row.id} type="number"/></td>
                 <td style={s.td}><Toggle value={row.activo} onChange={(v)=>updateField(row.id,"activo",v)}/></td>
               </tr>
@@ -179,7 +212,7 @@ function FlotaTab() {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// TAB: PERSONAL
+// TAB: PERSONAL — sin cambios
 // ═══════════════════════════════════════════════════════════════
 function PersonalTab() {
   const [rows, setRows] = useState([]);
@@ -258,7 +291,7 @@ function PersonalTab() {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// TAB: CALENDARIO
+// TAB: CALENDARIO — sin cambios
 // ═══════════════════════════════════════════════════════════════
 function CalendarTab() {
   const [template, setTemplate] = useState([]);
@@ -392,7 +425,7 @@ function CalendarTab() {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// COMPONENTES AUXILIARES
+// COMPONENTES AUXILIARES — sin cambios
 // ═══════════════════════════════════════════════════════════════
 function InlineEdit({ value, onSave, saving, type="text" }) {
   const [editing, setEditing] = useState(false);
@@ -453,7 +486,7 @@ function Toast({ msg }) {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// ESTILOS
+// ESTILOS — sin cambios
 // ═══════════════════════════════════════════════════════════════
 const s = {
   root: {fontFamily:"var(--font-ui)",background:"var(--bg-base)",color:"var(--text-primary)",minHeight:"100dvh"},
