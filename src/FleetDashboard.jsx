@@ -111,8 +111,9 @@ function transformServicesTemplate(servicesData, equipoMap, weekOffset=0, excepc
   monday.setDate(now.getDate() - ((now.getDay()+6)%7) + weekOffset*7);
   monday.setHours(0,0,0,0);
   const weekEndDate = new Date(monday); weekEndDate.setDate(monday.getDate()+6);
-  const weekStart = monday.toISOString().split("T")[0];
-  const weekEnd = weekEndDate.toISOString().split("T")[0];
+  // ── Usar toLocalDate() para evitar el bug de UTC-3 que corre el día un día atrás
+  const weekStart = toLocalDate(monday);
+  const weekEnd = toLocalDate(weekEndDate);
   const reemplazados = new Set();
   excepciones.forEach((exc) => {
     const fechaExc = (exc.fecha||"").toString().slice(0,10);
@@ -139,7 +140,8 @@ function transformServicesTemplate(servicesData, equipoMap, weekOffset=0, excepc
     const equipId = equipoMap[(svc.equipo||"").trim().toUpperCase()];
     if (!equipId) return;
     const date = new Date(monday); date.setDate(monday.getDate()+dayOffset);
-    const dateStr = date.toISOString().split("T")[0];
+    // ── toLocalDate() en lugar de .toISOString().split("T")[0]
+    const dateStr = toLocalDate(date);
     const equipKey = (svc.equipo||"").trim().toUpperCase();
     if (reemplazados.has(`${equipKey}|${dateStr}`)) return;
     events.push({ equipmentId:equipId, equipmentName:svc.equipo, sector:"—",
@@ -166,10 +168,19 @@ function transformFlota(flotaData) {
 
 function deriveStatus(equipId, activeFdsIds, noOkRecords, serviceEvents) {
   if (activeFdsIds.has(equipId)) return "fuera_servicio";
-  const now = new Date(); const in24h = new Date(now.getTime()+24*3600000);
-  if (serviceEvents.some((ev)=>ev.equipmentId===equipId && new Date(ev.datetime)>=now && new Date(ev.datetime)<=in24h)) return "warning";
+  // Warning: service dentro de las próximas 24h
+  // Usamos toLocalDate para evitar problemas de timezone con strings sin zona horaria
+  const now = new Date();
+  const in24h = new Date(now.getTime() + 24 * 3600000);
+  const hasUpcoming = serviceEvents.some((ev) => {
+    if (ev.equipmentId !== equipId) return false;
+    // Parsear el datetime como hora local (agregar el offset de Argentina si hace falta)
+    const evDate = new Date(ev.datetime.includes("T") ? ev.datetime : ev.datetime + "T00:00:00");
+    return evDate >= now && evDate <= in24h;
+  });
+  if (hasUpcoming) return "warning";
   const fourteenDaysAgo = new Date(); fourteenDaysAgo.setDate(fourteenDaysAgo.getDate()-14);
-  if (noOkRecords.some((r)=>r.equipmentId===equipId && new Date(r.date)>=fourteenDaysAgo)) return "no_ok";
+  if (noOkRecords.some((r)=>r.equipmentId===equipId && new Date(r.date+"T12:00:00")>=fourteenDaysAgo)) return "no_ok";
   return "ok";
 }
 
@@ -229,17 +240,14 @@ export default function FleetDashboard({ onBack }) {
           { data:svcData,     error:e3 },
           { data:fdsData,     error:e4 },
           { data:excData,     error:e5 },
-          { data:allChecks,   error:e6 },
-          { data:checks90,    error:e7 },
+          { data:checks90,    error:e6 },
         ] = await Promise.all([
           supabase.from("flota").select("*").eq("activo",true),
           supabase.from("checks").select("*").gte("fecha",sinceStr14),
           supabase.from("services_template").select("*"),
           supabase.from("fuera_de_servicio").select("*"),
           supabase.from("services_excepciones").select("*"),
-          // allChecks para Completitud — "area" es la columna correcta del sector del operario
-          supabase.from("checks").select("fecha,equipo,operario,area,turno").gte("fecha",sinceStr90),
-          // checks90 para NO OK heatmap con rango extendido
+          // Un solo fetch de 90d con select(*) — sirve para heatmap/fallas Y completitud
           supabase.from("checks").select("*").gte("fecha",sinceStr90),
         ]);
         if (e1) console.error("flota",e1.message);
@@ -247,8 +255,7 @@ export default function FleetDashboard({ onBack }) {
         if (e3) console.error("svc",e3.message);
         if (e4) console.error("fds",e4.message);
         if (e5) console.error("exc",e5.message);
-        if (e6) console.error("allChecks (completitud)",e6.message);
-        if (e7) console.error("checks90 (noOk)",e7.message);
+        if (e6) console.error("checks90",e6.message);
 
         const eqMap = buildEquipoMap(flotaData);
         const flotaT = transformFlota(flotaData);
@@ -263,7 +270,8 @@ export default function FleetDashboard({ onBack }) {
         setServicesRaw(svcData||[]);
         setExcepcionesRaw(excData||[]);
         setFdsRecords(fds.length?fds:FDS_MOCK);
-        setAllChecksData(allChecks||[]);
+        // checks90 tiene select(*) así que sirve para completitud también
+        setAllChecksData(checks90||[]);
         setDataSource(flotaT.length?"supabase":"mock");
       } catch(err) {
         console.error(err.message);
@@ -286,9 +294,8 @@ export default function FleetDashboard({ onBack }) {
       supabase.from("services_template").select("*"),
       supabase.from("fuera_de_servicio").select("*"),
       supabase.from("services_excepciones").select("*"),
-      supabase.from("checks").select("fecha,equipo,operario,area,turno").gte("fecha",sinceStr90),
       supabase.from("checks").select("*").gte("fecha",sinceStr90),
-    ]).then(([{data:flotaData},{data:checksData},{data:svcData},{data:fdsData},{data:excData},{data:allChecks},{data:checks90}])=>{
+    ]).then(([{data:flotaData},{data:checksData},{data:svcData},{data:fdsData},{data:excData},{data:checks90}])=>{
       const eqMap = buildEquipoMap(flotaData);
       const flotaT = transformFlota(flotaData);
       setEquipoMap(eqMap);
@@ -298,7 +305,7 @@ export default function FleetDashboard({ onBack }) {
       setServicesRaw(svcData||[]);
       setExcepcionesRaw(excData||[]);
       setFdsRecords(transformFds(fdsData).length?transformFds(fdsData):FDS_MOCK);
-      setAllChecksData(allChecks||[]);
+      setAllChecksData(checks90||[]);
       setLastUpdated(new Date());
     }).finally(()=>setRefreshing(false));
   }, []);
@@ -1305,12 +1312,12 @@ const RV = {
   rankCard: { flex:"1 1 280px",minWidth:260,background:"var(--bg-surface)",border:"1px solid var(--border)",borderRadius:"var(--radius-md)",padding:"14px 16px" },
   rankTitle: { display:"flex",alignItems:"center",gap:7,fontSize:12,fontWeight:700,color:"var(--text-primary)",marginBottom:14 },
   rankBars: { display:"flex",flexDirection:"column",gap:7 },
-  rankRow: { display:"flex",alignItems:"center",gap:8 },
-  rankPos: { fontSize:10,color:"var(--text-muted)",fontFamily:"var(--font-mono)",minWidth:14,textAlign:"right",flexShrink:0 },
-  rankLabel: { fontSize:11,color:"var(--text-secondary)",minWidth:70,maxWidth:110,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",flexShrink:0 },
-  rankTrack: { flex:1,height:16,background:"var(--bg-surface-2)",borderRadius:3,overflow:"hidden" },
-  rankBar: { height:"100%",borderRadius:3,transition:"width 400ms ease",minWidth:4 },
-  rankCount: { fontSize:12,fontWeight:700,fontFamily:"var(--font-mono)",minWidth:24,textAlign:"right",flexShrink:0 },
+  rankRow: { display:"flex",alignItems:"center",gap:6 },
+  rankPos: { fontSize:10,color:"var(--text-muted)",fontFamily:"var(--font-mono)",width:16,textAlign:"right",flexShrink:0 },
+  rankLabel: { fontSize:11,color:"var(--text-secondary)",width:"28%",minWidth:60,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",flexShrink:0 },
+  rankTrack: { flex:1,height:14,background:"var(--bg-surface-2)",borderRadius:3,overflow:"hidden",minWidth:0 },
+  rankBar: { height:"100%",borderRadius:3,transition:"width 400ms ease" },
+  rankCount: { fontSize:11,fontWeight:700,fontFamily:"var(--font-mono)",width:28,textAlign:"right",flexShrink:0 },
   // Lista
   listSection: { marginTop:4 },
   listHeader: { display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12,flexWrap:"wrap",gap:10 },
