@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect, useCallback } from "react";
 import './App.css';
 import FueraDeServicio from './FueraDeServicio.jsx';
 import RecepcionModal from './RecepcionModal.jsx';
+import CheckStatsTab from './CheckStatsTab.jsx';
 import { supabase } from './supabaseClient.js';
 
 function useIsMobile() {
@@ -153,12 +154,16 @@ function transformFds(fdsData) {
     sector:r.sector, type:r.type, startDate:r.start_date, reason:r.reason,
     resolved:r.resolved??false, resolvedDate:r.resolved_date }));
 }
+
 function transformFlota(flotaData) {
   if (!flotaData?.length) return [];
   return flotaData.filter((row)=>row.activo!==false).map((row) => ({
-    id:row.id_corto, name:row.equipo, type:row.tipo, sector:"—",
+    id:row.id_corto, name:row.equipo, type:row.tipo,
+    // ▼ NUEVO: sector propio del equipo (columna nueva en flota)
+    sector: row.sector || "—",
     horómetro:row.horometro||null, status:"ok", nextService:null }));
 }
+
 function deriveStatus(equipId, activeFdsIds, noOkRecords, serviceEvents) {
   if (activeFdsIds.has(equipId)) return "fuera_servicio";
   const now = new Date(); const in24h = new Date(now.getTime()+24*3600000);
@@ -169,14 +174,14 @@ function deriveStatus(equipId, activeFdsIds, noOkRecords, serviceEvents) {
 }
 
 const FLOTA_MOCK = [
-  { id:"AE-25",  name:"AE N° 25 TCM",   type:"AE GLP",     sector:"—", horómetro:12450 },
-  { id:"AE-34",  name:"AE N° 34 CAT",   type:"AE GLP",     sector:"—", horómetro:8920  },
-  { id:"AE-36",  name:"AE N°36 CAT",    type:"AE GLP",     sector:"—", horómetro:6200  },
-  { id:"CONT-1", name:"CONTAINERA",      type:"CONTAINERA", sector:"—", horómetro:3200  },
-  { id:"CAM-A",  name:"CAMIÓN AZUL",     type:"CAMIÓN",     sector:"—", horómetro:52100 },
+  { id:"AE-25",  name:"AE N° 25 TCM",   type:"AE GLP",     sector:"ALMACEN",    horómetro:12450 },
+  { id:"AE-34",  name:"AE N° 34 CAT",   type:"AE GLP",     sector:"ALMACEN",    horómetro:8920  },
+  { id:"AE-36",  name:"AE N°36 CAT",    type:"AE GLP",     sector:"EXPEDICION", horómetro:6200  },
+  { id:"CONT-1", name:"CONTAINERA",      type:"CONTAINERA", sector:"TRAPICHE",   horómetro:3200  },
+  { id:"CAM-A",  name:"CAMIÓN AZUL",     type:"CAMIÓN",     sector:"—",          horómetro:52100 },
 ];
 const FDS_MOCK = [
-  { id:1, equipmentId:"AE-25", equipmentName:"AE N° 25 TCM", sector:"—", type:"AE GLP", startDate:"2026-03-25", reason:"Demo — pérdida de aceite", resolved:false, resolvedDate:null },
+  { id:1, equipmentId:"AE-25", equipmentName:"AE N° 25 TCM", sector:"ALMACEN", type:"AE GLP", startDate:"2026-03-25", reason:"Demo — pérdida de aceite", resolved:false, resolvedDate:null },
 ];
 
 // ═════════════════════════════════════════════════════════════
@@ -184,6 +189,8 @@ export default function FleetDashboard({ onBack }) {
   const isMobile = useIsMobile();
   const [activeTab, setActiveTab] = useState("status");
   const [typeFilter, setTypeFilter] = useState("TODOS");
+  // ▼ NUEVO: filtro por sector del equipo
+  const [sectorEquipoFilter, setSectorEquipoFilter] = useState("TODOS");
   const [equipFilter, setEquipFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState(null);
   const [statusDetailModal, setStatusDetailModal] = useState(null);
@@ -191,10 +198,12 @@ export default function FleetDashboard({ onBack }) {
 
   const [flota, setFlota] = useState([]);
   const [equipoMap, setEquipoMap] = useState({});
-  const [noOkRecords, setNoOkRecords] = useState([]);
+  const [noOkRecords, setNoOkRecords] = useState([]);       // últimos 14d — para deriveStatus
+  const [allNoOkRecords, setAllNoOkRecords] = useState([]); // últimos 90d — para RecordView con filtro
   const [servicesRaw, setServicesRaw] = useState([]);
   const [excepcionesRaw, setExcepcionesRaw] = useState([]);
   const [fdsRecords, setFdsRecords] = useState([]);
+  const [allChecksData, setAllChecksData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [dataSource, setDataSource] = useState("loading");
@@ -205,33 +214,53 @@ export default function FleetDashboard({ onBack }) {
     async function fetchData() {
       const isConfigured = import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY;
       if (!isConfigured) {
-        setFlota(FLOTA_MOCK); setNoOkRecords([]); setServicesRaw([]); setExcepcionesRaw([]);
-        setFdsRecords(FDS_MOCK); setDataSource("mock"); setLoading(false); return;
+        setFlota(FLOTA_MOCK); setNoOkRecords([]); setAllNoOkRecords([]); setServicesRaw([]); setExcepcionesRaw([]);
+        setFdsRecords(FDS_MOCK); setAllChecksData([]); setDataSource("mock"); setLoading(false); return;
       }
       try {
-        const since = new Date(); since.setDate(since.getDate()-14);
-        const sinceStr = since.toISOString().split("T")[0];
-        const [{ data:flotaData,error:e1},{data:checksData,error:e2},{data:svcData,error:e3},{data:fdsData,error:e4},{data:excData,error:e5}] =
-          await Promise.all([
-            supabase.from("flota").select("*").eq("activo",true),
-            supabase.from("checks").select("*").gte("fecha",sinceStr),
-            supabase.from("services_template").select("*"),
-            supabase.from("fuera_de_servicio").select("*"),
-            supabase.from("services_excepciones").select("*"),
-          ]);
-        [e1,e2,e3,e4,e5].forEach((e,i)=>e&&console.error(["flota","checks","svc","fds","exc"][i],e.message));
+        const since14 = new Date(); since14.setDate(since14.getDate()-14);
+        const sinceStr14 = since14.toISOString().split("T")[0];
+        const since90 = new Date(); since90.setDate(since90.getDate()-90);
+        const sinceStr90 = since90.toISOString().split("T")[0];
+
+        const [
+          { data:flotaData,   error:e1 },
+          { data:checksData,  error:e2 },
+          { data:svcData,     error:e3 },
+          { data:fdsData,     error:e4 },
+          { data:excData,     error:e5 },
+          { data:allChecks,   error:e6 },
+          { data:checks90,    error:e7 },
+        ] = await Promise.all([
+          supabase.from("flota").select("*").eq("activo",true),
+          supabase.from("checks").select("*").gte("fecha",sinceStr14),
+          supabase.from("services_template").select("*"),
+          supabase.from("fuera_de_servicio").select("*"),
+          supabase.from("services_excepciones").select("*"),
+          supabase.from("checks").select("fecha,equipo,operario,sector,turno").gte("fecha",sinceStr90),
+          supabase.from("checks").select("*").gte("fecha",sinceStr90),
+        ]);
+        [e1,e2,e3,e4,e5,e6,e7].forEach((e,i)=>e&&console.error(["flota","checks","svc","fds","exc","allChecks","checks90"][i],e.message));
+
         const eqMap = buildEquipoMap(flotaData);
         const flotaT = transformFlota(flotaData);
-        const noOk = transformChecksToNoOk(checksData,eqMap);
+        const noOk14 = transformChecksToNoOk(checksData,eqMap);
+        const noOk90 = transformChecksToNoOk(checks90,eqMap);
         const fds = transformFds(fdsData);
-        setEquipoMap(eqMap); setFlota(flotaT.length?flotaT:FLOTA_MOCK);
-        setNoOkRecords(noOk); setServicesRaw(svcData||[]);
-        setExcepcionesRaw(excData||[]); setFdsRecords(fds.length?fds:FDS_MOCK);
+
+        setEquipoMap(eqMap);
+        setFlota(flotaT.length?flotaT:FLOTA_MOCK);
+        setNoOkRecords(noOk14);
+        setAllNoOkRecords(noOk90);
+        setServicesRaw(svcData||[]);
+        setExcepcionesRaw(excData||[]);
+        setFdsRecords(fds.length?fds:FDS_MOCK);
+        setAllChecksData(allChecks||[]);
         setDataSource(flotaT.length?"supabase":"mock");
       } catch(err) {
         console.error(err.message);
-        setFlota(FLOTA_MOCK); setNoOkRecords([]); setServicesRaw([]);
-        setExcepcionesRaw([]); setFdsRecords(FDS_MOCK); setDataSource("mock");
+        setFlota(FLOTA_MOCK); setNoOkRecords([]); setAllNoOkRecords([]); setServicesRaw([]);
+        setExcepcionesRaw([]); setFdsRecords(FDS_MOCK); setAllChecksData([]); setDataSource("mock");
       } finally { setLoading(false); setRefreshing(false); setLastUpdated(new Date()); }
     }
     fetchData();
@@ -239,20 +268,29 @@ export default function FleetDashboard({ onBack }) {
 
   const handleRefresh = useCallback(() => {
     setRefreshing(true);
-    const since = new Date(); since.setDate(since.getDate()-14);
-    const sinceStr = since.toISOString().split("T")[0];
+    const since14 = new Date(); since14.setDate(since14.getDate()-14);
+    const sinceStr14 = since14.toISOString().split("T")[0];
+    const since90 = new Date(); since90.setDate(since90.getDate()-90);
+    const sinceStr90 = since90.toISOString().split("T")[0];
     Promise.all([
       supabase.from("flota").select("*").eq("activo",true),
-      supabase.from("checks").select("*").gte("fecha",sinceStr),
+      supabase.from("checks").select("*").gte("fecha",sinceStr14),
       supabase.from("services_template").select("*"),
       supabase.from("fuera_de_servicio").select("*"),
       supabase.from("services_excepciones").select("*"),
-    ]).then(([{data:flotaData},{data:checksData},{data:svcData},{data:fdsData},{data:excData}])=>{
+      supabase.from("checks").select("fecha,equipo,operario,sector,turno").gte("fecha",sinceStr90),
+      supabase.from("checks").select("*").gte("fecha",sinceStr90),
+    ]).then(([{data:flotaData},{data:checksData},{data:svcData},{data:fdsData},{data:excData},{data:allChecks},{data:checks90}])=>{
       const eqMap = buildEquipoMap(flotaData);
       const flotaT = transformFlota(flotaData);
-      setEquipoMap(eqMap); setFlota(flotaT.length?flotaT:FLOTA_MOCK);
-      setNoOkRecords(transformChecksToNoOk(checksData,eqMap)); setServicesRaw(svcData||[]);
-      setExcepcionesRaw(excData||[]); setFdsRecords(transformFds(fdsData).length?transformFds(fdsData):FDS_MOCK);
+      setEquipoMap(eqMap);
+      setFlota(flotaT.length?flotaT:FLOTA_MOCK);
+      setNoOkRecords(transformChecksToNoOk(checksData,eqMap));
+      setAllNoOkRecords(transformChecksToNoOk(checks90,eqMap));
+      setServicesRaw(svcData||[]);
+      setExcepcionesRaw(excData||[]);
+      setFdsRecords(transformFds(fdsData).length?transformFds(fdsData):FDS_MOCK);
+      setAllChecksData(allChecks||[]);
       setLastUpdated(new Date());
     }).finally(()=>setRefreshing(false));
   }, []);
@@ -284,12 +322,17 @@ export default function FleetDashboard({ onBack }) {
   },[flota,activeFdsIds,noOkRecords,servicesRaw,equipoMap,excepcionesRaw]);
 
   const types = useMemo(()=>[...new Set(flota.map((e)=>e.type))],[flota]);
+  // ▼ NUEVO: sectores únicos de la flota para el filtro
+  const sectoresEquipo = useMemo(()=>[...new Set(flota.map((e)=>e.sector).filter(s=>s&&s!=="—"))].sort(),[flota]);
+
   const filteredEquipment = useMemo(()=>effectiveEquipment.filter((e)=>{
     if (statusFilter && e.status!==statusFilter) return false;
     if (typeFilter!=="TODOS" && e.type!==typeFilter) return false;
+    // ▼ NUEVO: filtro por sector del equipo
+    if (sectorEquipoFilter!=="TODOS" && e.sector!==sectorEquipoFilter) return false;
     if (equipFilter && !e.id.toLowerCase().includes(equipFilter.toLowerCase()) && !e.name.toLowerCase().includes(equipFilter.toLowerCase())) return false;
     return true;
-  }),[effectiveEquipment,typeFilter,equipFilter,statusFilter]);
+  }),[effectiveEquipment,typeFilter,sectorEquipoFilter,equipFilter,statusFilter]);
 
   const statusCounts = useMemo(()=>{
     const c = {ok:0,warning:0,no_ok:0,fuera_servicio:0};
@@ -332,7 +375,12 @@ export default function FleetDashboard({ onBack }) {
     { key:"calendar", label:isMobile?"Calendario" :"Calendario Semanal",  icon:<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg> },
     { key:"records",  label:isMobile?"NO OK"      :"Registro NO OK (14d)",icon:<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/><path d="M16 13H8M16 17H8"/></svg> },
     { key:"fds",      label:isMobile?"Inactivos"  :"Fuera de Servicio",   icon:<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M15 9l-6 6M9 9l6 6"/></svg> },
+    // ▼ NUEVO: pestaña de estadísticas de completitud
+    { key:"stats",    label:isMobile?"Estadísticas":"Completitud Checks",  icon:<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 20V10M12 20V4M6 20v-6"/></svg> },
   ];
+
+  // ▼ El filtro de sector equipo no aplica en la pestaña de estadísticas (tiene su propia lógica)
+  const hasActiveFilters = typeFilter!=="TODOS" || sectorEquipoFilter!=="TODOS" || equipFilter || statusFilter;
 
   return (
     <div style={ST.root}>
@@ -386,35 +434,49 @@ export default function FleetDashboard({ onBack }) {
         ))}
       </nav>
 
-      {/* ── Filtros ── */}
-      <div style={ST.filtersBar} className="fleet-filters-bar">
-        <div style={ST.filterGroup} className="fleet-filter-group">
-          <label style={ST.filterLabel}>Tipo</label>
-          <select style={ST.select} value={typeFilter} onChange={(e)=>setTypeFilter(e.target.value)}>
-            <option value="TODOS">Todos los tipos</option>
-            {types.map((t)=><option key={t} value={t}>{t}</option>)}
-          </select>
+      {/* ── Filtros — solo en tabs que los usan ── */}
+      {activeTab !== "stats" && (
+        <div style={ST.filtersBar} className="fleet-filters-bar">
+          <div style={ST.filterGroup} className="fleet-filter-group">
+            <label style={ST.filterLabel}>Tipo</label>
+            <select style={ST.select} value={typeFilter} onChange={(e)=>setTypeFilter(e.target.value)}>
+              <option value="TODOS">Todos los tipos</option>
+              {types.map((t)=><option key={t} value={t}>{t}</option>)}
+            </select>
+          </div>
+          {/* ▼ NUEVO: filtro por sector del equipo */}
+          {sectoresEquipo.length > 0 && (
+            <div style={ST.filterGroup} className="fleet-filter-group">
+              <label style={ST.filterLabel}>Sector equipo</label>
+              <select style={ST.select} value={sectorEquipoFilter} onChange={(e)=>setSectorEquipoFilter(e.target.value)}>
+                <option value="TODOS">Todos los sectores</option>
+                {sectoresEquipo.map((s)=><option key={s} value={s}>{s}</option>)}
+              </select>
+            </div>
+          )}
+          <div style={ST.filterGroup} className="fleet-filter-group">
+            <label style={ST.filterLabel}>Buscar</label>
+            <input style={ST.input} placeholder="ID o nombre..." value={equipFilter}
+              onChange={(e)=>setEquipFilter(e.target.value)}/>
+          </div>
+          {hasActiveFilters && (
+            <button className="fleet-clear-btn" style={ST.clearBtn}
+              onClick={()=>{setTypeFilter("TODOS");setSectorEquipoFilter("TODOS");setEquipFilter("");setStatusFilter(null);}}>
+              ✕ Limpiar
+            </button>
+          )}
         </div>
-        <div style={ST.filterGroup} className="fleet-filter-group">
-          <label style={ST.filterLabel}>Buscar</label>
-          <input style={ST.input} placeholder="ID o nombre..." value={equipFilter}
-            onChange={(e)=>setEquipFilter(e.target.value)}/>
-        </div>
-        {(typeFilter!=="TODOS"||equipFilter||statusFilter)&&(
-          <button className="fleet-clear-btn" style={ST.clearBtn}
-            onClick={()=>{setTypeFilter("TODOS");setEquipFilter("");setStatusFilter(null);}}>
-            ✕ Limpiar
-          </button>
-        )}
-      </div>
+      )}
 
       {/* ── Contenido principal ── */}
       <main style={ST.content} className="fleet-content">
         <div key={activeTab} className="fleet-tab-content">
           {activeTab==="status"   && <StatusFlota equipment={filteredEquipment} counts={statusCounts} onDetail={setStatusDetailModal} isMobile={isMobile} statusFilter={statusFilter} onStatusFilter={setStatusFilter}/>}
           {activeTab==="calendar" && <CalendarView equipment={filteredEquipment} events={serviceEvents} weekOffset={calendarWeekOffset} setWeekOffset={setCalendarWeekOffset} isMobile={isMobile} onEventClick={handleEventClick}/>}
-          {activeTab==="records"  && <RecordView equipment={filteredEquipment} records={noOkRecords} isMobile={isMobile}/>}
+          {activeTab==="records"  && <RecordView equipment={filteredEquipment} records={allNoOkRecords} flota={effectiveEquipment} isMobile={isMobile}/>}
           {activeTab==="fds"      && <FueraDeServicio records={fdsRecords} equipment={flota} onAdd={addFds} onResolve={resolveFds} isMobile={isMobile}/>}
+          {/* ▼ NUEVO */}
+          {activeTab==="stats"    && <CheckStatsTab checksData={allChecksData} flota={effectiveEquipment} isMobile={isMobile}/>}
         </div>
       </main>
 
@@ -456,7 +518,6 @@ export default function FleetDashboard({ onBack }) {
 function StatusFlota({ equipment, counts, onDetail, isMobile, statusFilter, onStatusFilter }) {
   return (
     <div>
-      {/* Tarjetas de estado */}
       <div style={ST.statusCards} className="fleet-status-cards">
         {Object.entries(STATUS_CONFIG).map(([key,cfg])=>{
           const isActive = statusFilter===key;
@@ -478,7 +539,6 @@ function StatusFlota({ equipment, counts, onDetail, isMobile, statusFilter, onSt
             </div>
           );
         })}
-        {/* Card total */}
         <div onClick={()=>onStatusFilter(null)}
           style={{...ST.statusCard,
             background:statusFilter===null?"rgba(158,130,240,0.1)":"var(--purple-bg)",
@@ -499,7 +559,6 @@ function StatusFlota({ equipment, counts, onDetail, isMobile, statusFilter, onSt
         </div>
       </div>
 
-      {/* Tabla desktop */}
       <div className="fleet-desktop-table">
         <div style={ST.tableContainer} className="fleet-table-container">
           <table style={ST.table}>
@@ -507,6 +566,8 @@ function StatusFlota({ equipment, counts, onDetail, isMobile, statusFilter, onSt
               <th style={ST.th}>Equipo</th>
               <th style={ST.th}>Estado</th>
               <th style={ST.th} className="fleet-col-type">Tipo</th>
+              {/* ▼ NUEVO: columna sector equipo en tabla */}
+              <th style={ST.th} className="fleet-col-sector">Sector</th>
               <th style={ST.th} className="fleet-col-horometro">Horómetro</th>
               <th style={ST.th}>Próx. Service</th>
               <th style={ST.th}>Detalle</th>
@@ -528,6 +589,12 @@ function StatusFlota({ equipment, counts, onDetail, isMobile, statusFilter, onSt
                       </span>
                     </td>
                     <td style={ST.td} className="fleet-col-type"><span style={ST.typeBadge}>{eq.type}</span></td>
+                    {/* ▼ NUEVO */}
+                    <td style={{...ST.td,fontSize:12,color:"var(--text-secondary)"}} className="fleet-col-sector">
+                      {eq.sector && eq.sector!=="—"
+                        ? <span style={ST.sectorBadge}>{eq.sector}</span>
+                        : <span style={{color:"var(--text-muted)"}}>—</span>}
+                    </td>
                     <td style={{...ST.td,fontFamily:"var(--font-mono)",fontSize:12,color:"var(--text-secondary)"}} className="fleet-col-horometro">
                       {eq.horómetro?eq.horómetro.toLocaleString():"—"}
                     </td>
@@ -554,7 +621,6 @@ function StatusFlota({ equipment, counts, onDetail, isMobile, statusFilter, onSt
         </div>
       </div>
 
-      {/* Cards mobile */}
       <div className="fleet-mobile-cards">
         {equipment.map((eq)=>{
           const cfg = STATUS_CONFIG[eq.status];
@@ -580,8 +646,9 @@ function StatusFlota({ equipment, counts, onDetail, isMobile, statusFilter, onSt
                   {STATUS_ICONS[cfg.icon]} {cfg.label}
                 </span>
               </div>
-              <div style={{display:"flex",gap:16,fontSize:11,color:"var(--text-secondary)"}}>
+              <div style={{display:"flex",gap:12,fontSize:11,color:"var(--text-secondary)",flexWrap:"wrap"}}>
                 <span>{eq.type}</span>
+                {eq.sector&&eq.sector!=="—"&&<span style={{color:"var(--text-tertiary)"}}>{eq.sector}</span>}
                 {eq.horómetro&&<span style={{fontFamily:"var(--font-mono)"}}>{eq.horómetro.toLocaleString()} hrs</span>}
                 {nextSvc&&<span>Svc: {nextSvc.toLocaleDateString("es-AR",{day:"2-digit",month:"short"})}</span>}
               </div>
@@ -594,7 +661,7 @@ function StatusFlota({ equipment, counts, onDetail, isMobile, statusFilter, onSt
 }
 
 // ═════════════════════════════════════════════════════════════
-// CALENDAR VIEW
+// CALENDAR VIEW — sin cambios
 // ═════════════════════════════════════════════════════════════
 function CalendarView({ equipment, events, weekOffset, setWeekOffset, isMobile, onEventClick }) {
   const now = new Date();
@@ -629,8 +696,6 @@ function CalendarView({ equipment, events, weekOffset, setWeekOffset, isMobile, 
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M9 18l6-6-6-6"/></svg>
         </button>
       </div>
-
-      {/* Grid desktop */}
       <div className="fleet-cal-grid-container">
         <div style={ST.calendarGrid}>
           <div style={ST.calTimeHeader}/>
@@ -674,8 +739,6 @@ function CalendarView({ equipment, events, weekOffset, setWeekOffset, isMobile, 
           ))}
         </div>
       </div>
-
-      {/* Lista mobile */}
       <div className="fleet-cal-list">
         {weekDates.map((d)=>{
           const ds = toLocalDate(d);
@@ -683,31 +746,15 @@ function CalendarView({ equipment, events, weekOffset, setWeekOffset, isMobile, 
           const isToday = ds===todayStr;
           return (
             <div key={ds} style={{marginBottom:10}}>
-              <div style={{
-                padding:"10px 14px",
-                background:isToday?"var(--bg-elevated)":"var(--bg-surface)",
-                borderRadius:"var(--radius-sm)",
-                borderLeft:`3px solid ${isToday?"var(--accent)":"var(--border)"}`,
-                marginBottom:6,display:"flex",justifyContent:"space-between",alignItems:"center"
-              }}>
-                <span style={{fontWeight:700,fontSize:13,color:isToday?"var(--accent)":"var(--text-primary)"}}>
-                  {DAYS[weekDates.indexOf(d)]} {d.getDate()}
-                </span>
+              <div style={{padding:"10px 14px",background:isToday?"var(--bg-elevated)":"var(--bg-surface)",borderRadius:"var(--radius-sm)",borderLeft:`3px solid ${isToday?"var(--accent)":"var(--border)"}`,marginBottom:6,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                <span style={{fontWeight:700,fontSize:13,color:isToday?"var(--accent)":"var(--text-primary)"}}>{DAYS[weekDates.indexOf(d)]} {d.getDate()}</span>
                 {de.length>0&&<span style={{fontSize:10,color:"var(--text-secondary)",background:"var(--bg-surface-2)",padding:"3px 8px",borderRadius:"var(--radius-pill)"}}>{de.length} services</span>}
               </div>
               {de.length===0
                 ?<div style={{fontSize:12,color:"var(--text-muted)",padding:"6px 14px"}}>Sin services programados</div>
                 :de.map((ev,i)=>(
                   <div key={i} onClick={()=>onEventClick?.(ev)}
-                    style={{
-                      display:"flex",alignItems:"center",gap:12,
-                      padding:"13px 14px",
-                      background:ev.type==="excepcion"?"var(--purple-bg)":"var(--accent-dim)",
-                      borderRadius:"var(--radius-sm)",
-                      borderLeft:`3px solid ${ev.type==="excepcion"?"var(--purple)":"var(--accent)"}`,
-                      marginBottom:4,cursor:"pointer",WebkitTapHighlightColor:"transparent",
-                      minHeight:"var(--tap-target)",
-                    }}>
+                    style={{display:"flex",alignItems:"center",gap:12,padding:"13px 14px",background:ev.type==="excepcion"?"var(--purple-bg)":"var(--accent-dim)",borderRadius:"var(--radius-sm)",borderLeft:`3px solid ${ev.type==="excepcion"?"var(--purple)":"var(--accent)"}`,marginBottom:4,cursor:"pointer",WebkitTapHighlightColor:"transparent",minHeight:"var(--tap-target)"}}>
                     <span style={{fontFamily:"var(--font-mono)",fontSize:12,color:"var(--text-secondary)",minWidth:44}}>{ev.datetime.split("T")[1]?.slice(0,5)}</span>
                     <span style={{fontFamily:"var(--font-mono)",fontWeight:700,fontSize:13,color:"var(--text-primary)"}}>{ev.equipmentId}</span>
                     <span style={{fontSize:12,color:"var(--text-secondary)",flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{ev.equipmentName}</span>
@@ -719,7 +766,6 @@ function CalendarView({ equipment, events, weekOffset, setWeekOffset, isMobile, 
           );
         })}
       </div>
-
       <div style={ST.calLegend}>
         <div style={ST.legendItem}><span style={{...ST.legendDot,background:"var(--accent)"}}/> Service semanal</div>
         <div style={ST.legendItem}><span style={{...ST.legendDot,background:"var(--purple)"}}/> Excepción</div>
@@ -730,80 +776,217 @@ function CalendarView({ equipment, events, weekOffset, setWeekOffset, isMobile, 
 }
 
 // ═════════════════════════════════════════════════════════════
-// RECORD VIEW (heatmap)
+// RECORD VIEW — Heatmap + Fallas con filtro de fechas
 // ═════════════════════════════════════════════════════════════
-function RecordView({ equipment, records, isMobile }) {
+function RecordView({ equipment, records, flota, isMobile }) {
+  // ── Sub-vista: "heatmap" | "fallas" ─────────────────────────
+  const [subView, setSubView] = useState("heatmap");
+
+  // ── Filtro de fechas ─────────────────────────────────────────
+  // Pensalo como una ventana deslizante sobre el array de registros.
+  // El preset "14d" es el default; "custom" habilita los date pickers.
+  const [preset, setPreset] = useState("14d");
+  const [customFrom, setCustomFrom] = useState("");
+  const [customTo,   setCustomTo]   = useState("");
+
+  const PRESETS = [
+    { key:"7d",  label:"7 días"  },
+    { key:"14d", label:"14 días" },
+    { key:"30d", label:"30 días" },
+    { key:"90d", label:"90 días" },
+    { key:"custom", label:"Personalizado" },
+  ];
+
+  const dateRange = useMemo(()=>{
+    const today = toLocalDate(new Date());
+    if (preset==="custom") {
+      return { from: customFrom||"2000-01-01", to: customTo||today };
+    }
+    const days = { "7d":7,"14d":14,"30d":30,"90d":90 }[preset]||14;
+    const from = new Date(); from.setDate(from.getDate()-days);
+    return { from: toLocalDate(from), to: today };
+  },[preset,customFrom,customTo]);
+
+  // ── Filtros adicionales (sector equipo / tipo) ───────────────
+  const [filterSector, setFilterSector]  = useState("TODOS");
+  const [filterTipo,   setFilterTipo]    = useState("TODOS");
+
+  const sectores = useMemo(()=>[...new Set(flota.map(e=>e.sector).filter(s=>s&&s!=="—"))].sort(),[flota]);
+  const tipos    = useMemo(()=>[...new Set(flota.map(e=>e.type))].sort(),[flota]);
+
+  // ── Construir conjunto de equipos válidos según filtros ──────
+  const eqIdsBase = useMemo(()=>{
+    const base = new Set(equipment.map(e=>e.id));
+    const out = new Set();
+    flota.forEach(eq=>{
+      if (!base.has(eq.id)) return;
+      if (filterSector!=="TODOS" && eq.sector!==filterSector) return;
+      if (filterTipo!=="TODOS"   && eq.type!==filterTipo)     return;
+      out.add(eq.id);
+    });
+    return out;
+  },[equipment,flota,filterSector,filterTipo]);
+
+  // ── Registros filtrados (fecha + equipo) ─────────────────────
+  const relevantRecords = useMemo(()=>
+    records.filter(r=>
+      eqIdsBase.has(r.equipmentId) &&
+      r.date >= dateRange.from &&
+      r.date <= dateRange.to
+    )
+  ,[records,eqIdsBase,dateRange]);
+
+  const equipmentFiltered = useMemo(()=>
+    equipment.filter(e=>eqIdsBase.has(e.id))
+  ,[equipment,eqIdsBase]);
+
+  const totalNoOk = relevantRecords.length;
+  const rangeLabel = preset==="custom"
+    ? `${dateRange.from} → ${dateRange.to}`
+    : PRESETS.find(p=>p.key===preset)?.label;
+
+  return (
+    <div>
+      {/* ── Barra de controles superior ── */}
+      <div style={RV.controlsBar}>
+        {/* Sub-vistas */}
+        <div style={RV.subViewToggle}>
+          <button onClick={()=>setSubView("heatmap")}
+            style={{...RV.subBtn,...(subView==="heatmap"?RV.subBtnActive:{})}}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+            Heatmap
+          </button>
+          <button onClick={()=>setSubView("fallas")}
+            style={{...RV.subBtn,...(subView==="fallas"?RV.subBtnActive:{})}}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>
+            Análisis de Fallas
+          </button>
+        </div>
+
+        {/* Separador */}
+        <div style={RV.sep}/>
+
+        {/* Atajos de período */}
+        <div style={RV.presetGroup}>
+          {PRESETS.map(p=>(
+            <button key={p.key} onClick={()=>setPreset(p.key)}
+              style={{...RV.presetBtn,...(preset===p.key?RV.presetActive:{})}}>
+              {p.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Date pickers custom */}
+        {preset==="custom" && (
+          <div style={RV.customRange}>
+            <input type="date" style={RV.dateInput} value={customFrom}
+              onChange={e=>setCustomFrom(e.target.value)}/>
+            <span style={{color:"var(--text-muted)",fontSize:11}}>→</span>
+            <input type="date" style={RV.dateInput} value={customTo}
+              onChange={e=>setCustomTo(e.target.value)}/>
+          </div>
+        )}
+
+        {/* Filtros sector / tipo */}
+        {sectores.length>0 && (
+          <select style={RV.filterSelect} value={filterSector} onChange={e=>setFilterSector(e.target.value)}>
+            <option value="TODOS">Todos los sectores</option>
+            {sectores.map(s=><option key={s} value={s}>{s}</option>)}
+          </select>
+        )}
+        <select style={RV.filterSelect} value={filterTipo} onChange={e=>setFilterTipo(e.target.value)}>
+          <option value="TODOS">Todos los tipos</option>
+          {tipos.map(t=><option key={t} value={t}>{t}</option>)}
+        </select>
+      </div>
+
+      {/* ── Badge de resumen del período ── */}
+      <div style={RV.rangeBadge}>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+        {rangeLabel}
+        <span style={RV.rangeSep}>·</span>
+        <span style={{color:totalNoOk>0?"var(--danger)":"var(--ok)",fontWeight:700}}>{totalNoOk}</span> registros NO OK
+        {(filterSector!=="TODOS"||filterTipo!=="TODOS")&&(
+          <button onClick={()=>{setFilterSector("TODOS");setFilterTipo("TODOS");}} style={RV.clearFilters}>✕ limpiar filtros</button>
+        )}
+      </div>
+
+      {/* ── Sub-vista Heatmap ── */}
+      {subView==="heatmap" && (
+        <HeatmapView equipment={equipmentFiltered} records={relevantRecords} isMobile={isMobile}/>
+      )}
+
+      {/* ── Sub-vista Fallas ── */}
+      {subView==="fallas" && (
+        <FallasView equipment={equipmentFiltered} records={relevantRecords} flota={flota} isMobile={isMobile}/>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// HEATMAP VIEW (extraído del RecordView original)
+// ─────────────────────────────────────────────────────────────
+function HeatmapView({ equipment, records, isMobile }) {
   const [selectedEquip, setSelectedEquip] = useState(null);
-  const [selectedItem, setSelectedItem] = useState(null);
-  const [selectedCell, setSelectedCell] = useState(null);
+  const [selectedItem,  setSelectedItem]  = useState(null);
+  const [selectedCell,  setSelectedCell]  = useState(null);
   const [tooltip, setTooltip] = useState(null);
-  const [drawer, setDrawer] = useState(null);
+  const [drawer,  setDrawer]  = useState(null);
 
   const closeAll = ()=>{ setSelectedEquip(null); setSelectedItem(null); setSelectedCell(null); setDrawer(null); };
-  const eqIds = new Set(equipment.map((e)=>e.id));
-  const relevantRecords = records.filter((r)=>eqIds.has(r.equipmentId));
 
   const aggregated = useMemo(()=>{
     const m = {};
-    relevantRecords.forEach((r)=>{
+    records.forEach((r)=>{
       if (!m[r.equipmentId]) m[r.equipmentId]={};
       if (!m[r.equipmentId][r.item]) m[r.equipmentId][r.item]=0;
       m[r.equipmentId][r.item]++;
     });
     return m;
-  },[relevantRecords]);
+  },[records]);
 
   const displayItems = useMemo(()=>{
     if (!isMobile) return CHECK_ITEMS;
-    return CHECK_ITEMS.filter((item)=>equipment.some((eq)=>(aggregated[eq.id]?.[item]||0)>0));
+    return CHECK_ITEMS.filter(item=>equipment.some(eq=>(aggregated[eq.id]?.[item]||0)>0));
   },[isMobile,aggregated,equipment]);
 
   const panelRecords = useMemo(()=>{
-    if (selectedEquip) return relevantRecords.filter((r)=>r.equipmentId===selectedEquip).sort((a,b)=>b.date.localeCompare(a.date));
-    if (selectedItem)  return relevantRecords.filter((r)=>r.item===selectedItem).sort((a,b)=>b.date.localeCompare(a.date));
-    if (selectedCell)  return relevantRecords.filter((r)=>r.equipmentId===selectedCell.equipId&&r.item===selectedCell.item).sort((a,b)=>b.date.localeCompare(a.date));
+    if (selectedEquip) return records.filter(r=>r.equipmentId===selectedEquip).sort((a,b)=>b.date.localeCompare(a.date));
+    if (selectedItem)  return records.filter(r=>r.item===selectedItem).sort((a,b)=>b.date.localeCompare(a.date));
+    if (selectedCell)  return records.filter(r=>r.equipmentId===selectedCell.equipId&&r.item===selectedCell.item).sort((a,b)=>b.date.localeCompare(a.date));
     return [];
-  },[selectedEquip,selectedItem,selectedCell,relevantRecords]);
+  },[selectedEquip,selectedItem,selectedCell,records]);
 
   const panelTitle = selectedEquip?`Equipo — ${selectedEquip}`:selectedItem?`Ítem — ${selectedItem}`:selectedCell?`${selectedCell.equipId} × ${selectedCell.item}`:"";
 
-  const handleEquipClick = (equipId)=>{ if(isMobile){setDrawer({type:"equip",id:equipId});}else{setSelectedItem(null);setSelectedCell(null);setSelectedEquip(selectedEquip===equipId?null:equipId);}};
-  const handleItemClick  = (item)=>{ const has=relevantRecords.some((r)=>r.item===item); if(!has)return; if(isMobile){setDrawer({type:"item",item});}else{setSelectedEquip(null);setSelectedCell(null);setSelectedItem(selectedItem===item?null:item);}};
-  const handleCellClick  = (equipId,item,count)=>{ if(count===0)return; if(isMobile){setDrawer({type:"cell",equipId,item});}else{setSelectedEquip(null);setSelectedItem(null);setSelectedCell(selectedCell?.equipId===equipId&&selectedCell?.item===item?null:{equipId,item});}};
-  const handleCellHover  = (e,equipId,item,count)=>{ if(isMobile||count===0)return; const cr=relevantRecords.filter((r)=>r.equipmentId===equipId&&r.item===item).sort((a,b)=>b.date.localeCompare(a.date)).slice(0,5); setTooltip({x:e.clientX,y:e.clientY,equipId,item,count,records:cr});};
+  const handleEquipClick = (id)=>{ if(isMobile){setDrawer({type:"equip",id});}else{setSelectedItem(null);setSelectedCell(null);setSelectedEquip(selectedEquip===id?null:id);}};
+  const handleItemClick  = (item)=>{ const has=records.some(r=>r.item===item); if(!has)return; if(isMobile){setDrawer({type:"item",item});}else{setSelectedEquip(null);setSelectedCell(null);setSelectedItem(selectedItem===item?null:item);}};
+  const handleCellClick  = (equipId,item,c)=>{ if(c===0)return; if(isMobile){setDrawer({type:"cell",equipId,item});}else{setSelectedEquip(null);setSelectedItem(null);setSelectedCell(selectedCell?.equipId===equipId&&selectedCell?.item===item?null:{equipId,item});}};
+  const handleCellHover  = (e,equipId,item,c)=>{ if(isMobile||c===0)return; const cr=records.filter(r=>r.equipmentId===equipId&&r.item===item).sort((a,b)=>b.date.localeCompare(a.date)).slice(0,5); setTooltip({x:e.clientX,y:e.clientY,equipId,item,count:c,records:cr});};
 
   const drawerRecords = useMemo(()=>{
     if (!drawer) return [];
-    if (drawer.type==="equip") return relevantRecords.filter((r)=>r.equipmentId===drawer.id).sort((a,b)=>b.date.localeCompare(a.date));
-    if (drawer.type==="item")  return relevantRecords.filter((r)=>r.item===drawer.item).sort((a,b)=>b.date.localeCompare(a.date));
-    if (drawer.type==="cell")  return relevantRecords.filter((r)=>r.equipmentId===drawer.equipId&&r.item===drawer.item).sort((a,b)=>b.date.localeCompare(a.date));
+    if (drawer.type==="equip") return records.filter(r=>r.equipmentId===drawer.id).sort((a,b)=>b.date.localeCompare(a.date));
+    if (drawer.type==="item")  return records.filter(r=>r.item===drawer.item).sort((a,b)=>b.date.localeCompare(a.date));
+    if (drawer.type==="cell")  return records.filter(r=>r.equipmentId===drawer.equipId&&r.item===drawer.item).sort((a,b)=>b.date.localeCompare(a.date));
     return [];
-  },[drawer,relevantRecords]);
+  },[drawer,records]);
   const drawerTitle = drawer?.type==="equip"?`Equipo — ${drawer.id}`:drawer?.type==="item"?`Ítem — ${drawer.item}`:drawer?.type==="cell"?`${drawer.equipId} × ${drawer.item}`:"";
 
-  const heatColor = (c)=>{
-    if (c===0) return "transparent";
-    if (c===1) return "rgba(245,200,66,0.18)";
-    if (c===2) return "rgba(240,140,50,0.28)";
-    if (c===3) return "rgba(240,100,100,0.32)";
-    return "rgba(240,100,100,0.52)";
-  };
-  const heatText = (c)=>{ if(c===0)return "var(--text-muted)"; if(c<=2)return "var(--warn)"; return "var(--danger)"; };
+  const heatColor = (c)=>{ if(c===0)return "transparent"; if(c===1)return "rgba(245,200,66,0.18)"; if(c===2)return "rgba(240,140,50,0.28)"; if(c===3)return "rgba(240,100,100,0.32)"; return "rgba(240,100,100,0.52)"; };
+  const heatText  = (c)=>{ if(c===0)return "var(--text-muted)"; if(c<=2)return "var(--warn)"; return "var(--danger)"; };
+
+  if (records.length===0) return <div style={RV.empty}>Sin registros NO OK para el período y filtros seleccionados.</div>;
 
   return (
     <div>
-      <p style={{fontSize:13,color:"var(--text-secondary)",marginBottom:16,lineHeight:1.6}}>
-        Ítems reportados como <span style={{color:"var(--danger)",fontWeight:700}}>NO OK</span> en los últimos 14 días.
-        {isMobile?<span style={{color:"var(--text-tertiary)"}}> Tocá una celda para ver detalle.</span>
-          :<span style={{color:"var(--text-tertiary)"}}> Hover para vista rápida. Clic para panel completo.</span>}
-      </p>
-
       <div style={{overflowX:"auto",borderRadius:"var(--radius-md)",border:"1px solid var(--border)"}} className="fleet-table-container fleet-heatmap-container">
         <table style={ST.table}>
           <thead><tr>
             <th style={{...ST.th,position:"sticky",left:0,background:"var(--bg-surface)",zIndex:3,minWidth:70}}>Equipo</th>
             {displayItems.map((item,i)=>{
-              const totalItem = relevantRecords.filter((r)=>r.item===item).length;
+              const totalItem = records.filter(r=>r.item===item).length;
               const isSelected = selectedItem===item;
               return (
                 <th key={i} onClick={()=>handleItemClick(item)}
@@ -822,34 +1005,36 @@ function RecordView({ equipment, records, isMobile }) {
               const eqData = aggregated[eq.id]||{};
               const total = Object.values(eqData).reduce((s,v)=>s+v,0);
               if (total===0) return null;
-              const isEquipSelected = selectedEquip===eq.id;
+              const isSel = selectedEquip===eq.id;
               return (
-                <tr key={eq.id} style={{...ST.tr,background:isEquipSelected?"var(--bg-elevated)":undefined}}>
+                <tr key={eq.id} style={{...ST.tr,background:isSel?"var(--bg-elevated)":undefined}}>
                   <td onClick={()=>handleEquipClick(eq.id)}
                     style={{...ST.td,position:"sticky",left:0,zIndex:1,
-                      background:isEquipSelected?"var(--bg-elevated)":"var(--bg-surface)",
+                      background:isSel?"var(--bg-elevated)":"var(--bg-surface)",
                       fontFamily:"var(--font-mono)",fontWeight:700,whiteSpace:"nowrap",cursor:"pointer",
-                      color:isEquipSelected?"var(--accent)":"var(--accent)",borderRight:"1px solid var(--border)",
+                      color:"var(--accent)",borderRight:"1px solid var(--border)",
                       transition:"all 150ms",fontSize:12,minHeight:"var(--tap-target)"}}>
                     {eq.id}
                   </td>
                   {displayItems.map((item,i)=>{
                     const c = eqData[item]||0;
-                    const isCellSelected = selectedCell?.equipId===eq.id&&selectedCell?.item===item;
+                    const isCellSel = selectedCell?.equipId===eq.id&&selectedCell?.item===item;
                     return (
                       <td key={i} onClick={()=>handleCellClick(eq.id,item,c)}
                         onMouseMove={(e)=>handleCellHover(e,eq.id,item,c)}
                         onMouseLeave={()=>setTooltip(null)}
-                        style={{...ST.td,textAlign:"center",background:isCellSelected?"rgba(232,200,122,0.12)":heatColor(c),
+                        style={{...ST.td,textAlign:"center",background:isCellSel?"rgba(232,200,122,0.12)":heatColor(c),
                           color:heatText(c),fontWeight:c>0?700:400,fontSize:13,
                           cursor:c>0?"pointer":"default",
-                          outline:isCellSelected?"2px solid var(--accent)":"none",outlineOffset:-1,
+                          outline:isCellSel?"2px solid var(--accent)":"none",outlineOffset:-1,
                           transition:"all 100ms"}}>
                         {c||"·"}
                       </td>
                     );
                   })}
-                  <td style={{...ST.td,textAlign:"center",fontWeight:800,color:total>5?"var(--danger)":total>2?"var(--warn)":"var(--text-secondary)",background:"var(--purple-bg)",fontSize:15}}>{total}</td>
+                  <td style={{...ST.td,textAlign:"center",fontWeight:800,
+                    color:total>5?"var(--danger)":total>2?"var(--warn)":"var(--text-secondary)",
+                    background:"var(--purple-bg)",fontSize:15}}>{total}</td>
                 </tr>
               );
             })}
@@ -916,6 +1101,161 @@ function RecordView({ equipment, records, isMobile }) {
   );
 }
 
+// ─────────────────────────────────────────────────────────────
+// FALLAS VIEW — lista + dos rankings en una sola pantalla
+// ─────────────────────────────────────────────────────────────
+function FallasView({ equipment, records, flota, isMobile }) {
+  const [sortBy,     setSortBy]     = useState("fecha");   // "fecha" | "equipo" | "item"
+  const [listLimit,  setListLimit]  = useState(50);
+  const [searchText, setSearchText] = useState("");
+
+  // ── Ranking equipos ──────────────────────────────────────────
+  const rankingEquipos = useMemo(()=>{
+    const m = {};
+    records.forEach(r=>{ m[r.equipmentId]=(m[r.equipmentId]||0)+1; });
+    return Object.entries(m).sort((a,b)=>b[1]-a[1]);
+  },[records]);
+
+  // ── Ranking ítems ────────────────────────────────────────────
+  const rankingItems = useMemo(()=>{
+    const m = {};
+    records.forEach(r=>{ m[r.item]=(m[r.item]||0)+1; });
+    return Object.entries(m).sort((a,b)=>b[1]-a[1]);
+  },[records]);
+
+  // ── Lista filtrada y ordenada ────────────────────────────────
+  const sortedRecords = useMemo(()=>{
+    let list = [...records];
+    if (searchText) {
+      const q = searchText.toLowerCase();
+      list = list.filter(r=>
+        r.equipmentId.toLowerCase().includes(q) ||
+        r.item.toLowerCase().includes(q) ||
+        (r.operario||"").toLowerCase().includes(q) ||
+        (r.descripcion||"").toLowerCase().includes(q)
+      );
+    }
+    if (sortBy==="fecha")  list.sort((a,b)=>b.date.localeCompare(a.date));
+    if (sortBy==="equipo") list.sort((a,b)=>a.equipmentId.localeCompare(b.equipmentId)||b.date.localeCompare(a.date));
+    if (sortBy==="item")   list.sort((a,b)=>a.item.localeCompare(b.item)||b.date.localeCompare(a.date));
+    return list;
+  },[records,sortBy,searchText]);
+
+  const maxEq   = rankingEquipos[0]?.[1] || 1;
+  const maxItem = rankingItems[0]?.[1]   || 1;
+
+  const barW = (v,max) => `${Math.max(4,Math.round(v/max*100))}%`;
+  const barC = (ratio) => ratio>=0.7?"var(--danger)":ratio>=0.4?"var(--warn)":"var(--accent)";
+
+  if (records.length===0) return <div style={RV.empty}>Sin registros NO OK para el período y filtros seleccionados.</div>;
+
+  return (
+    <div>
+      {/* ── Rankings lado a lado ── */}
+      <div style={RV.rankingsRow}>
+
+        {/* Ranking equipos */}
+        <div style={RV.rankCard}>
+          <div style={RV.rankTitle}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--danger)" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+            Equipos con más fallas
+          </div>
+          <div style={RV.rankBars}>
+            {rankingEquipos.slice(0,10).map(([id,count],i)=>{
+              const ratio = count/maxEq;
+              return (
+                <div key={id} style={RV.rankRow}>
+                  <span style={RV.rankPos}>{i+1}</span>
+                  <span style={{...RV.rankLabel,fontFamily:"var(--font-mono)",color:"var(--accent)"}}>{id}</span>
+                  <div style={RV.rankTrack}>
+                    <div style={{...RV.rankBar,width:barW(count,maxEq),background:barC(ratio)}}/>
+                  </div>
+                  <span style={{...RV.rankCount,color:barC(ratio)}}>{count}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Ranking ítems */}
+        <div style={RV.rankCard}>
+          <div style={RV.rankTitle}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--warn)" strokeWidth="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+            Ítems más fallados
+          </div>
+          <div style={RV.rankBars}>
+            {rankingItems.slice(0,10).map(([item,count],i)=>{
+              const ratio = count/maxItem;
+              return (
+                <div key={item} style={RV.rankRow}>
+                  <span style={RV.rankPos}>{i+1}</span>
+                  <span style={RV.rankLabel} title={item}>{item}</span>
+                  <div style={RV.rankTrack}>
+                    <div style={{...RV.rankBar,width:barW(count,maxItem),background:barC(ratio)}}/>
+                  </div>
+                  <span style={{...RV.rankCount,color:barC(ratio)}}>{count}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* ── Lista cronológica ── */}
+      <div style={RV.listSection}>
+        <div style={RV.listHeader}>
+          <div style={RV.listTitle}>
+            Lista de registros
+            <span style={RV.listCount}>{sortedRecords.length}</span>
+          </div>
+          <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
+            <input style={RV.searchInput} placeholder="Buscar equipo, ítem, operario..."
+              value={searchText} onChange={e=>setSearchText(e.target.value)}/>
+            <select style={RV.sortSelect} value={sortBy} onChange={e=>setSortBy(e.target.value)}>
+              <option value="fecha">Ordenar: Fecha desc</option>
+              <option value="equipo">Ordenar: Equipo</option>
+              <option value="item">Ordenar: Ítem</option>
+            </select>
+          </div>
+        </div>
+
+        <div style={{overflowX:"auto",borderRadius:"var(--radius-md)",border:"1px solid var(--border)"}}>
+          <table style={ST.table}>
+            <thead><tr>
+              <th style={ST.th}>Fecha</th>
+              <th style={ST.th}>Equipo</th>
+              <th style={{...ST.th,...(isMobile?{display:"none"}:{})}}>Turno</th>
+              <th style={ST.th}>Ítem fallado</th>
+              <th style={{...ST.th,...(isMobile?{display:"none"}:{})}}>Operario</th>
+              <th style={ST.th}>Descripción</th>
+            </tr></thead>
+            <tbody>
+              {sortedRecords.slice(0,listLimit).map((r,i)=>(
+                <tr key={i} style={ST.tr}>
+                  <td style={{...ST.td,fontFamily:"var(--font-mono)",fontSize:11,color:"var(--text-secondary)",whiteSpace:"nowrap"}}>
+                    {r.date?new Date(r.date).toLocaleDateString("es-AR",{day:"2-digit",month:"short",year:"2-digit"}):"—"}
+                  </td>
+                  <td style={{...ST.td,fontFamily:"var(--font-mono)",fontWeight:700,color:"var(--accent)",fontSize:12}}>{r.equipmentId}</td>
+                  <td style={{...ST.td,fontSize:11,color:"var(--text-tertiary)",...(isMobile?{display:"none"}:{})}}>{r.turno||"—"}</td>
+                  <td style={{...ST.td,color:"var(--danger)",fontWeight:600,fontSize:12}}>{r.item}</td>
+                  <td style={{...ST.td,fontSize:11,color:"var(--text-secondary)",...(isMobile?{display:"none"}:{})}}>{r.operario||"—"}</td>
+                  <td style={{...ST.td,fontSize:12,color:"var(--text-primary)",maxWidth:220}}>{r.descripcion||"—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {sortedRecords.length>listLimit&&(
+          <button onClick={()=>setListLimit(l=>l+50)} style={RV.loadMoreBtn}>
+            Mostrar más ({sortedRecords.length-listLimit} restantes)
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function RecordList({ records, isMobile }) {
   return (
     <div style={{display:"flex",flexDirection:"column",gap:6}}>
@@ -935,8 +1275,46 @@ function RecordList({ records, isMobile }) {
   );
 }
 
+// Estilos específicos de RecordView
+const RV = {
+  controlsBar: { display:"flex",alignItems:"center",gap:8,padding:"10px 14px",background:"var(--bg-surface)",border:"1px solid var(--border)",borderRadius:"var(--radius-md)",marginBottom:10,flexWrap:"wrap" },
+  subViewToggle: { display:"flex",gap:2,background:"var(--bg-surface-2)",padding:3,borderRadius:"var(--radius-sm)",flexShrink:0 },
+  subBtn: { display:"flex",alignItems:"center",gap:5,padding:"6px 12px",fontSize:12,fontWeight:600,background:"transparent",color:"var(--text-secondary)",border:"none",borderRadius:"var(--radius-xs)",cursor:"pointer",fontFamily:"var(--font-ui)",transition:"all 150ms",whiteSpace:"nowrap" },
+  subBtnActive: { background:"var(--bg-elevated)",color:"var(--accent)",boxShadow:"var(--shadow-sm)" },
+  sep: { width:1,height:24,background:"var(--border)",flexShrink:0 },
+  presetGroup: { display:"flex",gap:4,flexWrap:"wrap" },
+  presetBtn: { padding:"5px 10px",fontSize:11,fontWeight:600,background:"var(--bg-surface-2)",color:"var(--text-secondary)",border:"1px solid var(--border)",borderRadius:"var(--radius-pill)",cursor:"pointer",fontFamily:"var(--font-ui)",transition:"all 120ms",whiteSpace:"nowrap" },
+  presetActive: { background:"var(--accent-dim)",color:"var(--accent)",borderColor:"rgba(232,200,122,0.3)" },
+  customRange: { display:"flex",alignItems:"center",gap:6 },
+  dateInput: { padding:"5px 8px",fontSize:11,background:"var(--bg-surface-2)",color:"var(--text-primary)",border:"1px solid var(--border)",borderRadius:"var(--radius-sm)",fontFamily:"var(--font-ui)",minHeight:32 },
+  filterSelect: { padding:"5px 8px",fontSize:11,background:"var(--bg-surface-2)",color:"var(--text-primary)",border:"1px solid var(--border)",borderRadius:"var(--radius-sm)",fontFamily:"var(--font-ui)",cursor:"pointer",minHeight:32 },
+  rangeBadge: { display:"flex",alignItems:"center",gap:6,fontSize:11,color:"var(--text-secondary)",padding:"6px 12px",background:"var(--bg-surface)",border:"1px solid var(--border)",borderRadius:"var(--radius-sm)",marginBottom:14,flexWrap:"wrap" },
+  rangeSep: { color:"var(--border-hover)" },
+  clearFilters: { marginLeft:4,padding:"2px 8px",fontSize:10,fontWeight:600,background:"var(--danger-bg)",color:"var(--danger)",border:"1px solid var(--danger-border)",borderRadius:"var(--radius-pill)",cursor:"pointer",fontFamily:"var(--font-ui)" },
+  empty: { padding:40,textAlign:"center",color:"var(--text-muted)",background:"var(--bg-surface)",borderRadius:"var(--radius-md)",border:"1px solid var(--border)",fontSize:13 },
+  // Rankings
+  rankingsRow: { display:"flex",gap:14,marginBottom:20,flexWrap:"wrap" },
+  rankCard: { flex:"1 1 280px",minWidth:260,background:"var(--bg-surface)",border:"1px solid var(--border)",borderRadius:"var(--radius-md)",padding:"14px 16px" },
+  rankTitle: { display:"flex",alignItems:"center",gap:7,fontSize:12,fontWeight:700,color:"var(--text-primary)",marginBottom:14 },
+  rankBars: { display:"flex",flexDirection:"column",gap:7 },
+  rankRow: { display:"flex",alignItems:"center",gap:8 },
+  rankPos: { fontSize:10,color:"var(--text-muted)",fontFamily:"var(--font-mono)",minWidth:14,textAlign:"right",flexShrink:0 },
+  rankLabel: { fontSize:11,color:"var(--text-secondary)",minWidth:70,maxWidth:110,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",flexShrink:0 },
+  rankTrack: { flex:1,height:16,background:"var(--bg-surface-2)",borderRadius:3,overflow:"hidden" },
+  rankBar: { height:"100%",borderRadius:3,transition:"width 400ms ease",minWidth:4 },
+  rankCount: { fontSize:12,fontWeight:700,fontFamily:"var(--font-mono)",minWidth:24,textAlign:"right",flexShrink:0 },
+  // Lista
+  listSection: { marginTop:4 },
+  listHeader: { display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12,flexWrap:"wrap",gap:10 },
+  listTitle: { fontSize:13,fontWeight:600,color:"var(--text-primary)",display:"flex",alignItems:"center",gap:8 },
+  listCount: { fontSize:11,color:"var(--text-secondary)",background:"var(--bg-surface-2)",padding:"2px 8px",borderRadius:"var(--radius-pill)",fontWeight:400 },
+  searchInput: { padding:"6px 10px",fontSize:12,background:"var(--bg-surface-2)",color:"var(--text-primary)",border:"1px solid var(--border)",borderRadius:"var(--radius-sm)",fontFamily:"var(--font-ui)",minWidth:200,minHeight:32 },
+  sortSelect: { padding:"6px 8px",fontSize:11,background:"var(--bg-surface-2)",color:"var(--text-primary)",border:"1px solid var(--border)",borderRadius:"var(--radius-sm)",fontFamily:"var(--font-ui)",cursor:"pointer",minHeight:32 },
+  loadMoreBtn: { marginTop:12,width:"100%",padding:"10px",fontSize:12,fontWeight:600,background:"var(--bg-surface)",color:"var(--text-secondary)",border:"1px solid var(--border)",borderRadius:"var(--radius-sm)",cursor:"pointer",fontFamily:"var(--font-ui)",transition:"all 150ms" },
+};
+
 // ═════════════════════════════════════════════════════════════
-// DETAIL MODAL
+// DETAIL MODAL — sin cambios
 // ═════════════════════════════════════════════════════════════
 function DetailModal({ equipment, records, onClose }) {
   const cfg = STATUS_CONFIG[equipment.status];
@@ -957,6 +1335,7 @@ function DetailModal({ equipment, records, onClose }) {
         <div style={{padding:"16px 24px 28px"}}>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}} className="fleet-modal-grid">
             {[["ID",equipment.id,true],["Tipo",equipment.type,false],
+              ["Sector",equipment.sector||"—",false],
               ["Horómetro",equipment.horómetro?.toLocaleString()||"N/A",true],
               ["Próx. Service",equipment.nextService?new Date(equipment.nextService).toLocaleString("es-AR"):"Sin programar",false]
             ].map(([lbl,val,mono])=>(
@@ -1027,6 +1406,8 @@ const ST = {
   td: { padding:"11px 12px", verticalAlign:"middle" },
   statusPill: { display:"inline-flex", alignItems:"center", gap:5, padding:"4px 9px", borderRadius:"var(--radius-pill)", fontSize:11, fontWeight:600, border:"1px solid", whiteSpace:"nowrap" },
   typeBadge: { padding:"3px 8px", borderRadius:"var(--radius-xs)", fontSize:10, background:"var(--bg-surface-2)", color:"var(--text-tertiary)", fontWeight:500, textTransform:"uppercase", letterSpacing:0.3 },
+  // ▼ NUEVO
+  sectorBadge: { padding:"3px 8px", borderRadius:"var(--radius-xs)", fontSize:10, background:"var(--info-bg)", color:"var(--info)", fontWeight:600, textTransform:"uppercase", letterSpacing:0.3, border:"1px solid var(--info-border)" },
   urgentBadge: { display:"inline-block", marginLeft:8, padding:"2px 7px", borderRadius:"var(--radius-pill)", fontSize:10, background:"var(--warn-bg)", color:"var(--warn)", fontWeight:600, border:"1px solid var(--warn-border)" },
   detailBtn: { padding:"6px 12px", fontSize:11, background:"var(--info-bg)", color:"var(--info)", border:"1px solid var(--info-border)", borderRadius:"var(--radius-sm)", cursor:"pointer", fontFamily:"var(--font-ui)", fontWeight:600 },
   closeBtn: { background:"transparent", border:"1px solid var(--border)", color:"var(--text-secondary)", padding:"6px 10px", borderRadius:"var(--radius-sm)", cursor:"pointer", fontFamily:"var(--font-ui)", fontSize:13, flexShrink:0 },
