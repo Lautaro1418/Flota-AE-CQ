@@ -49,7 +49,8 @@ export default function CheckStatsTab({ checksData, flota, isMobile }) {
   const bySectorOperario = useMemo(() => {
     const m = {};
     filtered.forEach((c) => {
-      const key = c.sector || "Sin sector";
+      // La columna en la tabla checks se llama "area" (sector del operario)
+      const key = c.area || "Sin sector";
       m[key] = (m[key] || 0) + 1;
     });
     return Object.entries(m).sort((a, b) => b[1] - a[1]);
