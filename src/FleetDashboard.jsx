@@ -95,7 +95,7 @@ function transformChecksToNoOk(checksData, equipoMap) {
     if (!equipId) return;
     CHECK_FIELD_MAP.forEach(({ field, obs, label }) => {
       if ((check[field] || "").toUpperCase().trim() === "NO OK") {
-        records.push({ equipmentId:equipId, date:check.fecha, item:label,
+        records.push({ equipmentId:equipId, date:(check.fecha||"").toString().slice(0,10), item:label,
           turno:check.turno||"—", operario:check.operario||"—", descripcion:check[obs]||"Sin descripción" });
       }
     });
@@ -237,10 +237,18 @@ export default function FleetDashboard({ onBack }) {
           supabase.from("services_template").select("*"),
           supabase.from("fuera_de_servicio").select("*"),
           supabase.from("services_excepciones").select("*"),
-          supabase.from("checks").select("fecha,equipo,operario,sector,turno").gte("fecha",sinceStr90),
+          // allChecks para Completitud — "area" es la columna correcta del sector del operario
+          supabase.from("checks").select("fecha,equipo,operario,area,turno").gte("fecha",sinceStr90),
+          // checks90 para NO OK heatmap con rango extendido
           supabase.from("checks").select("*").gte("fecha",sinceStr90),
         ]);
-        [e1,e2,e3,e4,e5,e6,e7].forEach((e,i)=>e&&console.error(["flota","checks","svc","fds","exc","allChecks","checks90"][i],e.message));
+        if (e1) console.error("flota",e1.message);
+        if (e2) console.error("checks14",e2.message);
+        if (e3) console.error("svc",e3.message);
+        if (e4) console.error("fds",e4.message);
+        if (e5) console.error("exc",e5.message);
+        if (e6) console.error("allChecks (completitud)",e6.message);
+        if (e7) console.error("checks90 (noOk)",e7.message);
 
         const eqMap = buildEquipoMap(flotaData);
         const flotaT = transformFlota(flotaData);
@@ -278,7 +286,7 @@ export default function FleetDashboard({ onBack }) {
       supabase.from("services_template").select("*"),
       supabase.from("fuera_de_servicio").select("*"),
       supabase.from("services_excepciones").select("*"),
-      supabase.from("checks").select("fecha,equipo,operario,sector,turno").gte("fecha",sinceStr90),
+      supabase.from("checks").select("fecha,equipo,operario,area,turno").gte("fecha",sinceStr90),
       supabase.from("checks").select("*").gte("fecha",sinceStr90),
     ]).then(([{data:flotaData},{data:checksData},{data:svcData},{data:fdsData},{data:excData},{data:allChecks},{data:checks90}])=>{
       const eqMap = buildEquipoMap(flotaData);
@@ -336,9 +344,9 @@ export default function FleetDashboard({ onBack }) {
 
   const statusCounts = useMemo(()=>{
     const c = {ok:0,warning:0,no_ok:0,fuera_servicio:0};
-    effectiveEquipment.forEach((e)=>c[e.status]++);
-    c.total = effectiveEquipment.length; return c;
-  },[effectiveEquipment]);
+    filteredEquipment.forEach((e)=>c[e.status]++);
+    c.total = filteredEquipment.length; return c;
+  },[filteredEquipment]);
 
   const addFds = useCallback(async(entry)=>{
     if (!import.meta.env.VITE_SUPABASE_URL) {
