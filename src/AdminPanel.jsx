@@ -9,21 +9,28 @@ const SECTORS = [
 const DIAS = ["LUNES","MARTES","MIERCOLES","JUEVES","VIERNES","SABADO"];
 
 // ═══════════════════════════════════════════════════════════════
-// LOGIN
+// LOGIN — migrado a Supabase Auth
 // ═══════════════════════════════════════════════════════════════
 function AdminLogin({ onLogin }) {
+  const [email, setEmail] = useState("");
   const [pwd, setPwd] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     setLoading(true);
-    setTimeout(() => {
-      const correct = import.meta.env.VITE_ADMIN_PASSWORD;
-      if (pwd===correct) onLogin();
-      else { setError("Contraseña incorrecta."); setPwd(""); }
-      setLoading(false);
-    }, 400);
+    setError("");
+    const { error: authError } = await supabase.auth.signInWithPassword({
+      email: email.trim(),
+      password: pwd,
+    });
+    if (authError) {
+      setError("Credenciales incorrectas.");
+      setPwd("");
+    } else {
+      onLogin();
+    }
+    setLoading(false);
   };
 
   return (
@@ -35,14 +42,27 @@ function AdminLogin({ onLogin }) {
           </svg>
         </div>
         <h2 style={s.loginTitle}>Administración</h2>
-        <p style={s.loginSub}>Ingresá la contraseña para continuar</p>
-        <input type="password" placeholder="Contraseña" value={pwd}
-          onChange={(e)=>{setPwd(e.target.value);setError("");}}
-          onKeyDown={(e)=>e.key==="Enter"&&handleSubmit()}
-          style={s.loginInput} autoFocus/>
-        {error&&<div style={s.loginError}>{error}</div>}
+        <p style={s.loginSub}>Ingresá tus credenciales para continuar</p>
+        <input
+          type="email"
+          placeholder="Email"
+          value={email}
+          onChange={(e) => { setEmail(e.target.value); setError(""); }}
+          onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
+          style={{ ...s.loginInput, letterSpacing: "normal", marginBottom: 8 }}
+          autoFocus
+        />
+        <input
+          type="password"
+          placeholder="Contraseña"
+          value={pwd}
+          onChange={(e) => { setPwd(e.target.value); setError(""); }}
+          onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
+          style={s.loginInput}
+        />
+        {error && <div style={s.loginError}>{error}</div>}
         <button onClick={handleSubmit} style={s.loginBtn} disabled={loading}>
-          {loading?"Verificando...":"Ingresar"}
+          {loading ? "Verificando..." : "Ingresar"}
         </button>
       </div>
     </div>
@@ -50,13 +70,25 @@ function AdminLogin({ onLogin }) {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// PANEL PRINCIPAL
+// PANEL PRINCIPAL — logout agregado
 // ═══════════════════════════════════════════════════════════════
 export default function AdminPanel({ onBack }) {
   const [authed, setAuthed] = useState(false);
   const [activeTab, setActiveTab] = useState("flota");
 
-  if (!authed) return <AdminLogin onLogin={()=>setAuthed(true)}/>;
+  // Verificar si ya hay sesión activa al montar
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) setAuthed(true);
+    });
+  }, []);
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    setAuthed(false);
+  };
+
+  if (!authed) return <AdminLogin onLogin={() => setAuthed(true)} />;
 
   const TABS = [
     { key:"flota",    label:"Flota",       icon:<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg> },
@@ -78,7 +110,10 @@ export default function AdminPanel({ onBack }) {
             <div style={s.headerSub}>Gestión de datos · Flota CQ</div>
           </div>
         </div>
-        <button onClick={onBack} style={s.backBtn}>← Inicio</button>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button onClick={handleLogout} style={s.logoutBtn}>Cerrar sesión</button>
+          <button onClick={onBack} style={s.backBtn}>← Inicio</button>
+        </div>
       </header>
 
       <nav style={s.tabs}>
@@ -101,12 +136,7 @@ export default function AdminPanel({ onBack }) {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// TAB: FLOTA — MODIFICADO: sector agregado
-// Cambios vs original:
-//   1. newRow incluye sector:""
-//   2. addRow inserta sector en Supabase
-//   3. Tabla muestra columna Sector con <select> inline por fila
-//   4. Formulario "Nuevo equipo" tiene campo Sector
+// TAB: FLOTA — sin cambios
 // ═══════════════════════════════════════════════════════════════
 function FlotaTab() {
   const [rows, setRows] = useState([]);
@@ -486,7 +516,7 @@ function Toast({ msg }) {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// ESTILOS — sin cambios
+// ESTILOS — logoutBtn agregado
 // ═══════════════════════════════════════════════════════════════
 const s = {
   root: {fontFamily:"var(--font-ui)",background:"var(--bg-base)",color:"var(--text-primary)",minHeight:"100dvh"},
@@ -496,6 +526,7 @@ const s = {
   headerTitle: {fontSize:14,fontWeight:700,color:"var(--text-primary)"},
   headerSub: {fontSize:11,color:"var(--text-tertiary)",marginTop:2},
   backBtn: {background:"transparent",border:"1px solid var(--border)",color:"var(--text-secondary)",padding:"6px 14px",borderRadius:"var(--radius-sm)",cursor:"pointer",fontFamily:"var(--font-ui)",fontSize:12,fontWeight:500,minHeight:36},
+  logoutBtn: {background:"transparent",border:"1px solid var(--danger-border)",color:"var(--danger)",padding:"6px 14px",borderRadius:"var(--radius-sm)",cursor:"pointer",fontFamily:"var(--font-ui)",fontSize:12,fontWeight:500,minHeight:36},
   tabs: {display:"flex",gap:0,padding:"0 20px",background:"var(--bg-surface)",borderBottom:"1px solid var(--border)",overflowX:"auto"},
   tab: {padding:"11px 18px",fontSize:12,fontWeight:500,background:"transparent",color:"var(--text-secondary)",border:"none",borderBottom:"2px solid transparent",cursor:"pointer",fontFamily:"var(--font-ui)",display:"flex",alignItems:"center",transition:"all 200ms",flexShrink:0,minHeight:40},
   tabActive: {color:"var(--accent)",borderBottomColor:"var(--accent)",background:"var(--accent-dim)"},
