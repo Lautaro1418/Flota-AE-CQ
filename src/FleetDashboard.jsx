@@ -518,6 +518,8 @@ export default function FleetDashboard({ onBack }) {
           </button>
         ))}
       </nav>
+      {/* Spacer para que el contenido no quede tapado por el bottom nav en mobile */}
+      {isMobile && <div style={{height:"calc(72px + env(safe-area-inset-bottom, 0px))", flexShrink:0}}/>}
 
       {/* ── Modales ── */}
       {statusDetailModal && (
@@ -537,11 +539,13 @@ export default function FleetDashboard({ onBack }) {
 // STATUS FLOTA
 // ═════════════════════════════════════════════════════════════
 function StatusFlota({ equipment, counts, onDetail, isMobile, statusFilter, onStatusFilter }) {
+  const total = counts.total || 1; // evitar div/0
   return (
     <div>
       <div style={ST.statusCards} className="fleet-status-cards">
         {Object.entries(STATUS_CONFIG).map(([key,cfg])=>{
           const isActive = statusFilter===key;
+          const pct = total > 0 ? Math.round((counts[key] / total) * 100) : 0;
           return (
             <div key={key} onClick={()=>onStatusFilter(isActive?null:key)}
               style={{...ST.statusCard, background:cfg.bg,
@@ -554,7 +558,10 @@ function StatusFlota({ equipment, counts, onDetail, isMobile, statusFilter, onSt
               }}>
               <div style={{...ST.statusIconWrap,color:cfg.color}}>{CARD_ICONS[cfg.icon]}</div>
               <div>
-                <div style={{...ST.statusNumber,color:cfg.color}}>{counts[key]}</div>
+                <div style={{display:"flex",alignItems:"baseline",gap:5}}>
+                  <div style={{...ST.statusNumber,color:cfg.color}}>{counts[key]}</div>
+                  <div style={{fontSize:11,fontWeight:600,color:cfg.color,opacity:0.7,fontFamily:"var(--font-mono)"}}>{pct}%</div>
+                </div>
                 <div style={ST.statusLabel}>{cfg.label}</div>
               </div>
             </div>
