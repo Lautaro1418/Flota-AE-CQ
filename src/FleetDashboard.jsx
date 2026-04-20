@@ -248,7 +248,8 @@ export default function FleetDashboard({ onBack }) {
           supabase.from("fuera_de_servicio").select("*"),
           supabase.from("services_excepciones").select("*"),
           // Un solo fetch de 90d con select(*) — sirve para heatmap/fallas Y completitud
-          supabase.from("checks").select("*").gte("fecha",sinceStr90),
+          // order desc + limit alto para evitar el corte default de 1000 filas de Supabase
+          supabase.from("checks").select("*").gte("fecha",sinceStr90).order("fecha",{ascending:false}).limit(5000),
         ]);
         if (e1) console.error("flota",e1.message);
         if (e2) console.error("checks14",e2.message);
@@ -294,7 +295,7 @@ export default function FleetDashboard({ onBack }) {
       supabase.from("services_template").select("*"),
       supabase.from("fuera_de_servicio").select("*"),
       supabase.from("services_excepciones").select("*"),
-      supabase.from("checks").select("*").gte("fecha",sinceStr90),
+      supabase.from("checks").select("*").gte("fecha",sinceStr90).order("fecha",{ascending:false}).limit(5000),
     ]).then(([{data:flotaData},{data:checksData},{data:svcData},{data:fdsData},{data:excData},{data:checks90}])=>{
       const eqMap = buildEquipoMap(flotaData);
       const flotaT = transformFlota(flotaData);
@@ -325,7 +326,12 @@ export default function FleetDashboard({ onBack }) {
   const effectiveEquipment = useMemo(()=>{
     const nextSvcMap = {};
     const now = new Date();
-    const thisWeekEvents = transformServicesTemplate(servicesRaw,equipoMap,0,excepcionesRaw);
+    // ── Combinar semana actual + siguiente para capturar services
+    //    de lunes cuando es domingo de noche (< 24h de distancia)
+    const thisWeekEvents = [
+      ...transformServicesTemplate(servicesRaw,equipoMap,0,excepcionesRaw),
+      ...transformServicesTemplate(servicesRaw,equipoMap,1,excepcionesRaw),
+    ];
     thisWeekEvents.forEach((ev)=>{
       const d = new Date(ev.datetime);
       if (d>=now && (!nextSvcMap[ev.equipmentId]||d<new Date(nextSvcMap[ev.equipmentId])))
@@ -1068,7 +1074,7 @@ function HeatmapView({ equipment, records, isMobile }) {
           {tooltip.records.map((r,i)=>(
             <div key={i} style={{display:"flex",alignItems:"center",gap:8,padding:"5px 0",borderTop:i>0?"1px solid var(--border-subtle)":"none",fontSize:11}}>
               <span style={{color:"var(--text-secondary)",minWidth:42,fontWeight:600,fontFamily:"var(--font-mono)"}}>
-                {r.date?new Date(r.date).toLocaleDateString("es-AR",{day:"2-digit",month:"short"}):"—"}
+                {r.date?new Date(r.date+"T12:00:00").toLocaleDateString("es-AR",{day:"2-digit",month:"short"}):"—"}
               </span>
               <span style={{color:"var(--text-tertiary)",background:"var(--bg-surface-2)",padding:"1px 5px",borderRadius:3,fontSize:10,fontWeight:500}}>{r.turno||"—"}</span>
               <span style={{color:"var(--text-primary)",flex:1}}>{r.descripcion||"Sin descripción"}</span>
@@ -1248,7 +1254,7 @@ function FallasView({ equipment, records, flota, isMobile }) {
               {sortedRecords.slice(0,listLimit).map((r,i)=>(
                 <tr key={i} style={ST.tr}>
                   <td style={{...ST.td,fontFamily:"var(--font-mono)",fontSize:11,color:"var(--text-secondary)",whiteSpace:"nowrap"}}>
-                    {r.date?new Date(r.date).toLocaleDateString("es-AR",{day:"2-digit",month:"short",year:"2-digit"}):"—"}
+                    {r.date?new Date(r.date+"T12:00:00").toLocaleDateString("es-AR",{day:"2-digit",month:"short",year:"2-digit"}):"—"}
                   </td>
                   <td style={{...ST.td,fontFamily:"var(--font-mono)",fontWeight:700,color:"var(--accent)",fontSize:12}}>{r.equipmentId}</td>
                   <td style={{...ST.td,fontSize:11,color:"var(--text-tertiary)",...(isMobile?{display:"none"}:{})}}>{r.turno||"—"}</td>
@@ -1277,7 +1283,7 @@ function RecordList({ records, isMobile }) {
       {records.map((r,i)=>(
         <div key={i} style={{display:"flex",alignItems:"flex-start",gap:10,padding:"10px 12px",background:"var(--bg-base)",borderRadius:"var(--radius-sm)",border:"1px solid var(--border-subtle)",fontSize:12,flexWrap:"wrap"}}>
           <div style={{fontFamily:"var(--font-mono)",color:"var(--text-secondary)",minWidth:50,fontWeight:500,flexShrink:0}}>
-            {r.date?new Date(r.date).toLocaleDateString("es-AR",{day:"2-digit",month:"short"}):"—"}
+            {r.date?new Date(r.date+"T12:00:00").toLocaleDateString("es-AR",{day:"2-digit",month:"short"}):"—"}
           </div>
           <span style={{color:"var(--text-tertiary)",fontSize:10,background:"var(--bg-surface-2)",padding:"2px 6px",borderRadius:3,fontWeight:500,flexShrink:0}}>{r.turno||"—"}</span>
           {!isMobile&&<span style={{fontFamily:"var(--font-mono)",color:"var(--accent)",fontWeight:700,minWidth:60,flexShrink:0}}>{r.equipmentId}</span>}
@@ -1369,7 +1375,7 @@ function DetailModal({ equipment, records, onClose }) {
               <h4 style={{color:"var(--text-secondary)",marginBottom:12,fontSize:11,textTransform:"uppercase",letterSpacing:1.2,fontWeight:600}}>Últimos reportes NO OK</h4>
               {records.slice(0,6).map((r,i)=>(
                 <div key={i} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 10px",background:"var(--bg-base)",borderRadius:"var(--radius-sm)",marginBottom:4,fontSize:12}}>
-                  <span style={{fontFamily:"var(--font-mono)",color:"var(--text-secondary)",minWidth:55}}>{new Date(r.date).toLocaleDateString("es-AR",{day:"2-digit",month:"short"})}</span>
+                  <span style={{fontFamily:"var(--font-mono)",color:"var(--text-secondary)",minWidth:55}}>{new Date(r.date+"T12:00:00").toLocaleDateString("es-AR",{day:"2-digit",month:"short"})}</span>
                   <span style={{color:"var(--danger)",fontWeight:600,flex:1}}>{r.item}</span>
                   <span style={{color:"var(--text-tertiary)",fontSize:11}}>{r.operario}</span>
                 </div>
