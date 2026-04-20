@@ -10,7 +10,6 @@
   --font-ui:   'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
   --font-mono: 'JetBrains Mono', 'SF Mono', monospace;
 
-  /* 60% — Fondos (neutros fríos oscuros) */
   --bg-base:      #0A0B0D;
   --bg-surface:   #111318;
   --bg-surface-2: #171B22;
@@ -18,24 +17,20 @@
   --bg-elevated:  #1A1F2A;
   --bg-hover:     #1F2535;
 
-  /* Texto */
   --text-primary:   #F0F2F5;
   --text-secondary: #7C8494;
   --text-tertiary:  #4A5166;
   --text-muted:     #2E3547;
 
-  /* 10% — Acento único: Ámbar */
   --accent:       #E8C87A;
   --accent-hover: #F0D48E;
   --accent-dim:   rgba(232, 200, 122, 0.10);
   --accent-glow:  rgba(232, 200, 122, 0.15);
 
-  /* 30% — Bordes */
   --border:        #1D2230;
   --border-subtle: #151920;
   --border-hover:  #2A3348;
 
-  /* Estados — variaciones acromáticas con tinte */
   --ok:          #5AE0A4;
   --ok-bg:       rgba(90, 224, 164, 0.07);
   --ok-border:   rgba(90, 224, 164, 0.18);
@@ -55,7 +50,6 @@
   --purple:      #9E82F0;
   --purple-bg:   rgba(158, 130, 240, 0.07);
 
-  /* Radios */
   --radius-xs:   4px;
   --radius-sm:   8px;
   --radius-md:   12px;
@@ -63,22 +57,18 @@
   --radius-xl:   24px;
   --radius-pill: 100px;
 
-  /* Sombras */
   --shadow-sm:   0 1px 4px rgba(0,0,0,0.4);
   --shadow-md:   0 4px 20px rgba(0,0,0,0.5);
   --shadow-lg:   0 16px 48px rgba(0,0,0,0.6);
   --shadow-glow: 0 0 32px rgba(232,200,122,0.08);
 
-  /* Transiciones */
   --t-fast: 120ms ease;
   --t-base: 200ms ease;
   --t-slow: 350ms ease;
 
-  /* Tamaños táctiles móvil */
   --tap-target: 44px;
 }
 
-/* ─── Reset global ──────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 body {
@@ -87,17 +77,14 @@ body {
   color: var(--text-primary);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  /* Evitar zoom en inputs iOS */
   -webkit-text-size-adjust: 100%;
 }
 
-/* ─── Scrollbar ─────────────────────────────────────────────── */
 ::-webkit-scrollbar { width: 4px; height: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--border-hover); }
 
-/* ─── Tab transition ────────────────────────────────────────── */
 .fleet-tab-content {
   animation: fadeSlideIn 220ms ease both;
 }
@@ -106,7 +93,6 @@ body {
   to   { opacity: 1; transform: translateY(0); }
 }
 
-/* ─── Tabs desktop ──────────────────────────────────────────── */
 .fleet-tabs {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
@@ -115,19 +101,13 @@ body {
 .fleet-tabs::-webkit-scrollbar { display: none; }
 .fleet-tab-btn { flex-shrink: 0; }
 
-/* ─── Table scroll ──────────────────────────────────────────── */
 .fleet-table-container {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
 }
 
-/* ─── Calendar list ─────────────────────────────────────────── */
 .fleet-cal-list { display: none; }
-
-/* ─── Bottom nav (oculto en desktop) ───────────────────────── */
 .fleet-bottom-nav { display: none; }
-
-/* ─── Mobile cards ──────────────────────────────────────────── */
 .fleet-mobile-cards { display: none; }
 .fleet-desktop-table { display: block; }
 
@@ -136,26 +116,18 @@ body {
    ═══════════════════════════════════════════════════════════════ */
 @media (max-width: 768px) {
 
-  /* ── Header ── */
   .fleet-header {
     flex-direction: row !important;
     align-items: center !important;
     padding: 12px 16px !important;
     gap: 10px !important;
   }
-  .fleet-header-right {
-    gap: 8px !important;
-  }
-  .fleet-title {
-    font-size: 14px !important;
-    letter-spacing: 0.3px !important;
-  }
+  .fleet-header-right { gap: 8px !important; }
+  .fleet-title { font-size: 14px !important; letter-spacing: 0.3px !important; }
   .fleet-subtitle { font-size: 10px !important; }
 
-  /* ── Ocultar tabs superiores ── */
   .fleet-tabs { display: none !important; }
 
-  /* ── Bottom nav ── */
   .fleet-bottom-nav {
     display: flex !important;
     position: fixed;
@@ -163,19 +135,20 @@ body {
     z-index: 900;
     background: var(--bg-surface);
     border-top: 1px solid var(--border);
-    padding: 4px 0 max(12px, env(safe-area-inset-bottom));
+    /* Respeta el home indicator de iOS/Android */
+    padding: 6px 0 max(14px, env(safe-area-inset-bottom));
     justify-content: space-around;
     backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
   }
 
-  /* ── Content con padding bottom para el nav ── */
+  /* ── Padding extra para que el contenido no quede debajo del nav ── */
   .fleet-content {
     padding: 12px 14px !important;
-    padding-bottom: 90px !important;
+    /* 72px nav + safe area + margen extra de seguridad */
+    padding-bottom: max(100px, calc(72px + env(safe-area-inset-bottom, 20px) + 20px)) !important;
   }
 
-  /* ── Filters bar ── */
   .fleet-filters-bar {
     flex-direction: column !important;
     padding: 10px 14px !important;
@@ -187,24 +160,20 @@ body {
   .fleet-filters-bar input { width: 100% !important; min-width: unset !important; }
   .fleet-clear-btn { width: 100%; text-align: center; }
 
-  /* ── Status cards: 2 col ── */
   .fleet-status-cards {
     display: grid !important;
     grid-template-columns: repeat(2, 1fr) !important;
     gap: 8px !important;
   }
 
-  /* ── Desktop table → mobile cards ── */
   .fleet-desktop-table { display: none !important; }
   .fleet-mobile-cards  { display: flex !important; flex-direction: column; gap: 8px; }
 
-  /* ── Botones de acción más compactos ── */
   .fleet-action-btn {
     padding: 7px 12px !important;
     font-size: 11px !important;
   }
 
-  /* ── Calendar: list view en mobile ── */
   .fleet-cal-grid-container { display: none !important; }
   .fleet-cal-list { display: block !important; }
   .fleet-cal-header {
@@ -213,7 +182,6 @@ body {
     gap: 10px !important;
   }
 
-  /* ── Modal: slide desde abajo ── */
   .fleet-modal {
     width: 100% !important;
     max-width: 100% !important;
@@ -225,12 +193,10 @@ body {
   }
   .fleet-modal-grid { grid-template-columns: 1fr !important; }
 
-  /* ── FdS ── */
   .fds-form-grid { grid-template-columns: 1fr !important; }
   .fds-table-col-sector,
   .fds-table-col-type { display: none !important; }
 
-  /* ── Heatmap ── */
   .fleet-heatmap-container { overflow-x: auto; }
   .fleet-col-type,
   .fleet-col-horometro,
@@ -244,7 +210,6 @@ body {
   .fleet-col-horometro { display: none !important; }
 }
 
-/* ─── Keyframes utilitarios ─────────────────────────────────── */
 @keyframes slideUp {
   from { transform: translateY(100%); }
   to   { transform: translateY(0); }
@@ -266,7 +231,6 @@ body {
 .animate-fade-in  { animation: fadeIn 200ms ease both; }
 .animate-pulse    { animation: pulse 1.8s ease-in-out infinite; }
 
-/* ─── Live dot pulse ────────────────────────────────────────── */
 @keyframes livePulse {
   0%   { box-shadow: 0 0 0 0 rgba(90, 224, 164, 0.5); }
   70%  { box-shadow: 0 0 0 6px rgba(90, 224, 164, 0); }
