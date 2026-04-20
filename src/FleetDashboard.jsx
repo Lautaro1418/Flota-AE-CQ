@@ -1175,7 +1175,7 @@ function FallasView({ equipment, records, flota, isMobile }) {
       {/* ── Rankings lado a lado ── */}
       <div style={RV.rankingsRow}>
 
-        {/* Ranking equipos */}
+        {/* Ranking equipos — IDs cortos → label angosto, right-aligned */}
         <div style={RV.rankCard}>
           <div style={RV.rankTitle}>
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--danger)" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
@@ -1187,18 +1187,19 @@ function FallasView({ equipment, records, flota, isMobile }) {
               return (
                 <div key={id} style={RV.rankRow}>
                   <span style={RV.rankPos}>{i+1}</span>
-                  <span style={{...RV.rankLabel,fontFamily:"var(--font-mono)",color:"var(--accent)"}}>{id}</span>
+                  {/* IDs cortos (AE-32) → ancho angosto + right-align para quedar pegados a la barra */}
+                  <span style={{...RV.rankLabelShort, fontFamily:"var(--font-mono)", color:"var(--accent)"}} title={id}>{id}</span>
                   <div style={RV.rankTrack}>
-                    <div style={{...RV.rankBar,width:barW(count,maxEq),background:barC(ratio)}}/>
+                    <div style={{...RV.rankBar, width:barW(count,maxEq), background:barC(ratio)}}/>
                   </div>
-                  <span style={{...RV.rankCount,color:barC(ratio)}}>{count}</span>
+                  <span style={{...RV.rankCount, color:barC(ratio)}}>{count}</span>
                 </div>
               );
             })}
           </div>
         </div>
 
-        {/* Ranking ítems */}
+        {/* Ranking ítems — nombres largos → label más ancho */}
         <div style={RV.rankCard}>
           <div style={RV.rankTitle}>
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--warn)" strokeWidth="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
@@ -1210,11 +1211,12 @@ function FallasView({ equipment, records, flota, isMobile }) {
               return (
                 <div key={item} style={RV.rankRow}>
                   <span style={RV.rankPos}>{i+1}</span>
-                  <span style={RV.rankLabel} title={item}>{item}</span>
+                  {/* Nombres de ítems más largos → ancho mayor, right-align igual */}
+                  <span style={RV.rankLabelWide} title={item}>{item}</span>
                   <div style={RV.rankTrack}>
-                    <div style={{...RV.rankBar,width:barW(count,maxItem),background:barC(ratio)}}/>
+                    <div style={{...RV.rankBar, width:barW(count,maxItem), background:barC(ratio)}}/>
                   </div>
-                  <span style={{...RV.rankCount,color:barC(ratio)}}>{count}</span>
+                  <span style={{...RV.rankCount, color:barC(ratio)}}>{count}</span>
                 </div>
               );
             })}
@@ -1314,16 +1316,19 @@ const RV = {
   clearFilters: { marginLeft:4,padding:"2px 8px",fontSize:10,fontWeight:600,background:"var(--danger-bg)",color:"var(--danger)",border:"1px solid var(--danger-border)",borderRadius:"var(--radius-pill)",cursor:"pointer",fontFamily:"var(--font-ui)" },
   empty: { padding:40,textAlign:"center",color:"var(--text-muted)",background:"var(--bg-surface)",borderRadius:"var(--radius-md)",border:"1px solid var(--border)",fontSize:13 },
   // Rankings
-  rankingsRow: { display:"flex",gap:14,marginBottom:20,flexWrap:"wrap" },
-  rankCard: { flex:"1 1 280px",minWidth:260,background:"var(--bg-surface)",border:"1px solid var(--border)",borderRadius:"var(--radius-md)",padding:"14px 16px" },
-  rankTitle: { display:"flex",alignItems:"center",gap:7,fontSize:12,fontWeight:700,color:"var(--text-primary)",marginBottom:14 },
-  rankBars: { display:"flex",flexDirection:"column",gap:7 },
-  rankRow: { display:"flex",alignItems:"center",gap:6 },
-  rankPos: { fontSize:10,color:"var(--text-muted)",fontFamily:"var(--font-mono)",width:16,textAlign:"right",flexShrink:0 },
-  rankLabel: { fontSize:11,color:"var(--text-secondary)",width:"28%",minWidth:60,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",flexShrink:0 },
-  rankTrack: { flex:1,height:14,background:"var(--bg-surface-2)",borderRadius:3,overflow:"hidden",minWidth:0 },
-  rankBar: { height:"100%",borderRadius:3,transition:"width 400ms ease" },
-  rankCount: { fontSize:11,fontWeight:700,fontFamily:"var(--font-mono)",width:28,textAlign:"right",flexShrink:0 },
+  rankingsRow: { display:"flex", gap:14, marginBottom:20, flexWrap:"wrap" },
+  rankCard:    { flex:"1 1 300px", minWidth:260, background:"var(--bg-surface)", border:"1px solid var(--border)", borderRadius:"var(--radius-md)", padding:"16px 18px" },
+  rankTitle:   { display:"flex", alignItems:"center", gap:7, fontSize:12, fontWeight:700, color:"var(--text-primary)", marginBottom:14 },
+  rankBars:    { display:"flex", flexDirection:"column", gap:8 },
+  rankRow:     { display:"flex", alignItems:"center", gap:8 },
+  rankPos:     { fontSize:10, color:"var(--text-muted)", fontFamily:"var(--font-mono)", width:16, textAlign:"right", flexShrink:0 },
+  // Label corto (IDs como AE-32): ancho fijo angosto + right-align → sin gap entre texto y barra
+  rankLabelShort: { fontSize:12, fontWeight:700, fontFamily:"var(--font-mono)", color:"var(--text-secondary)", width:64, flexShrink:0, textAlign:"right", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" },
+  // Label largo (nombres de ítems): ancho mayor, también right-align
+  rankLabelWide:  { fontSize:11, fontWeight:500, color:"var(--text-secondary)", width:150, flexShrink:0, textAlign:"right", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" },
+  rankTrack:   { flex:1, height:22, background:"var(--bg-surface-2)", borderRadius:"var(--radius-xs)", overflow:"hidden", minWidth:0 },
+  rankBar:     { height:"100%", borderRadius:"var(--radius-xs)", transition:"width 400ms ease" },
+  rankCount:   { fontSize:12, fontWeight:700, fontFamily:"var(--font-mono)", width:28, textAlign:"right", flexShrink:0 },
   // Lista
   listSection: { marginTop:4 },
   listHeader: { display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12,flexWrap:"wrap",gap:10 },
